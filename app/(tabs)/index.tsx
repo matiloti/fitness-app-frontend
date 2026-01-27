@@ -237,7 +237,7 @@ export default function TodayDashboardScreen() {
             <View style={styles.emptyWorkouts}>
               <Ionicons name="fitness-outline" size={32} color="#C7C7CC" />
               <Text style={styles.emptyWorkoutsText}>No workouts yet today</Text>
-              <TouchableOpacity>
+              <TouchableOpacity onPress={() => router.push('/workouts/log')}>
                 <Text style={styles.logWorkoutText}>+ Log Workout</Text>
               </TouchableOpacity>
             </View>
