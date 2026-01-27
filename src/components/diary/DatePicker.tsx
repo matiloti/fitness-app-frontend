@@ -32,16 +32,20 @@ export function DateNavigation({
   const canGoForward = !maxDate || date < maxDate;
 
   const handlePrevious = useCallback(() => {
-    if (canGoBack) {
+    // Check bounds directly to avoid stale closure issues
+    const canNavigateBack = !minDate || date > minDate;
+    if (canNavigateBack) {
       onDateChange(addDays(date, -1));
     }
-  }, [date, canGoBack, onDateChange]);
+  }, [date, minDate, onDateChange]);
 
   const handleNext = useCallback(() => {
-    if (canGoForward) {
+    // Check bounds directly to avoid stale closure issues
+    const canNavigateForward = !maxDate || date < maxDate;
+    if (canNavigateForward) {
       onDateChange(addDays(date, 1));
     }
-  }, [date, canGoForward, onDateChange]);
+  }, [date, maxDate, onDateChange]);
 
   const handleToday = useCallback(() => {
     onDateChange(today);
