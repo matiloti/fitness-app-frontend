@@ -10,19 +10,25 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { PeriodSelector, LineChart } from '../../../src/components/progress';
+import { PeriodSelector } from '../../../src/components/progress';
+import { InteractiveLineChart } from '../../../src/components/charts';
 import { useWeightTrend } from '../../../src/hooks/useAnalytics';
-import type { Period, TrendDirection } from '../../../src/types/analytics';
+import type { Period, TrendDirection, WeightDataPoint } from '../../../src/types/analytics';
 
 const screenWidth = Dimensions.get('window').width;
 
 export default function WeightChartScreen() {
   const [period, setPeriod] = useState<Period>('30d');
+  const [selectedPoint, setSelectedPoint] = useState<WeightDataPoint | null>(null);
   const { data, isLoading, isRefetching, refetch } = useWeightTrend(period);
 
   const handleRefresh = useCallback(() => {
     refetch();
   }, [refetch]);
+
+  const handleDataPointSelect = useCallback((point: WeightDataPoint | null) => {
+    setSelectedPoint(point);
+  }, []);
 
   const getTrendIcon = (trend: TrendDirection): string => {
     switch (trend) {
@@ -81,12 +87,13 @@ export default function WeightChartScreen() {
 
           {/* Chart */}
           {data?.dataPoints && data.dataPoints.length > 0 ? (
-            <LineChart
+            <InteractiveLineChart
               data={data.dataPoints}
               trendLine={data.trendLine}
               height={220}
               width={screenWidth - 64}
               style={styles.chart}
+              onDataPointSelect={handleDataPointSelect}
             />
           ) : (
             <View style={styles.emptyChart}>
@@ -94,6 +101,11 @@ export default function WeightChartScreen() {
                 No weight data for this period
               </Text>
             </View>
+          )}
+
+          {/* Hint text for interactivity */}
+          {data?.dataPoints && data.dataPoints.length > 0 && !selectedPoint && (
+            <Text style={styles.chartHint}>Tap on data points to see details</Text>
           )}
         </View>
 
@@ -258,6 +270,12 @@ const styles = StyleSheet.create({
   emptyChartText: {
     fontSize: 15,
     color: '#8E8E93',
+  },
+  chartHint: {
+    fontSize: 12,
+    color: '#8E8E93',
+    textAlign: 'center',
+    marginTop: 8,
   },
   sectionTitle: {
     fontSize: 17,
