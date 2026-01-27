@@ -42,6 +42,26 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen
+        name="recipes"
+        options={{
+          title: 'Recipes',
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="restaurant" size={size} color={color} />
+          ),
+          tabBarAccessibilityLabel: 'Recipes tab, browse and create recipes',
+        }}
+      />
+      <Tabs.Screen
+        name="workouts"
+        options={{
+          title: 'Workouts',
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="fitness" size={size} color={color} />
+          ),
+          tabBarAccessibilityLabel: 'Workouts tab, log and view workouts',
+        }}
+      />
+      <Tabs.Screen
         name="progress"
         options={{
           title: 'Progress',

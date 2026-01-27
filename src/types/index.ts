@@ -381,3 +381,8 @@ export interface RegistrationData {
   // Weight for calculation
   currentWeight?: number;
 }
+
+// -----------------------------------------------------------------------------
+// Re-export analytics types
+// -----------------------------------------------------------------------------
+export * from './analytics';

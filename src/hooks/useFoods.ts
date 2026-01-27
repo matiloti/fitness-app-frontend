@@ -40,10 +40,11 @@ export const foodKeys = {
 /**
  * Hook to search and list foods with pagination
  */
-export function useFoods(params: FoodListParams = {}) {
+export function useFoods(params: FoodListParams = {}, enabled = true) {
   return useQuery<FoodListResponse>({
     queryKey: foodKeys.list(params),
     queryFn: () => foodService.getFoods(params),
+    enabled,
   });
 }
 
