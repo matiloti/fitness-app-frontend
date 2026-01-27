@@ -9,16 +9,26 @@ import {
   Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
-import { BarChart } from 'react-native-chart-kit';
-import { PeriodSelector } from '../../../src/components/progress';
-import { useCalorieIntakeTrend, useMacroDistributionRange } from '../../../src/hooks/useAnalytics';
-import type { Period, AdherenceStatus } from '../../../src/types/analytics';
+import { useRouter } from 'expo-router';
+import {
+  PeriodSelector,
+  CalorieOverviewCard,
+  MacroProgressCard,
+} from '../../../src/components/progress';
+import { InteractiveBarChart } from '../../../src/components/charts';
+import {
+  useCalorieIntakeTrend,
+  useMacroDistributionRange,
+  useDashboardSummary,
+} from '../../../src/hooks/useAnalytics';
+import type { Period, AdherenceStatus, CalorieDataPoint } from '../../../src/types/analytics';
 
 const screenWidth = Dimensions.get('window').width;
 
 export default function NutritionScreen() {
+  const router = useRouter();
   const [period, setPeriod] = useState<Period>('7d');
+  const [selectedBar, setSelectedBar] = useState<CalorieDataPoint | null>(null);
 
   // Calculate date range for macro distribution
   const endDate = new Date().toISOString().split('T')[0];
@@ -42,11 +52,21 @@ export default function NutritionScreen() {
 
   const caloriesTrend = useCalorieIntakeTrend(period);
   const macroDistribution = useMacroDistributionRange(startDate, endDate);
+  const dashboardSummary = useDashboardSummary();
 
   const handleRefresh = useCallback(() => {
     caloriesTrend.refetch();
     macroDistribution.refetch();
-  }, [caloriesTrend, macroDistribution]);
+    dashboardSummary.refetch();
+  }, [caloriesTrend, macroDistribution, dashboardSummary]);
+
+  const handleLogFood = useCallback(() => {
+    router.push('/diary');
+  }, [router]);
+
+  const handleBarSelect = useCallback((point: CalorieDataPoint | null) => {
+    setSelectedBar(point);
+  }, []);
 
   const getAdherenceColor = (status: AdherenceStatus): string => {
     switch (status) {
@@ -63,7 +83,8 @@ export default function NutritionScreen() {
 
   const isLoading =
     (caloriesTrend.isLoading && !caloriesTrend.data) ||
-    (macroDistribution.isLoading && !macroDistribution.data);
+    (macroDistribution.isLoading && !macroDistribution.data) ||
+    (dashboardSummary.isLoading && !dashboardSummary.data);
 
   if (isLoading) {
     return (
@@ -78,6 +99,12 @@ export default function NutritionScreen() {
 
   const calories = caloriesTrend.data;
   const macros = macroDistribution.data;
+  const todayData = dashboardSummary.data?.today;
+
+  // Today's data for calorie and macro cards
+  const caloriesCurrent = todayData?.caloriesConsumed ?? 0;
+  const caloriesGoal = todayData?.calorieGoal ?? 2000;
+  const todayMacros = todayData?.macros;
 
   // Determine how many data points to show based on period
   const getChartPoints = () => {
@@ -94,48 +121,8 @@ export default function NutritionScreen() {
   };
   const chartPointCount = getChartPoints();
 
-  // Prepare bar chart data based on selected period
-  const chartData = calories?.dataPoints?.slice(-chartPointCount).map((point) => ({
-    date: point.date,
-    consumed: point.consumed,
-    goal: point.goal,
-    adherence: point.adherence,
-  })) ?? [];
-
-  // For longer periods, show fewer labels to keep the chart readable
-  const getLabelInterval = () => {
-    switch (period) {
-      case '7d':
-        return 1; // Show all labels
-      case '30d':
-        return 7; // Show weekly labels
-      case '90d':
-        return 14; // Show bi-weekly labels
-      default:
-        return 1;
-    }
-  };
-  const labelInterval = getLabelInterval();
-
-  const barChartData = {
-    labels: chartData.map((d, index) => {
-      // Only show labels at the interval to avoid overcrowding
-      if (index % labelInterval !== 0 && index !== chartData.length - 1) {
-        return '';
-      }
-      const date = new Date(d.date + 'T00:00:00');
-      if (period === '7d') {
-        return date.toLocaleDateString('en-US', { weekday: 'short' }).slice(0, 3);
-      }
-      // For longer periods, show date as M/D format
-      return `${date.getMonth() + 1}/${date.getDate()}`;
-    }),
-    datasets: [
-      {
-        data: chartData.map((d) => d.consumed),
-      },
-    ],
-  };
+  // Prepare chart data based on selected period
+  const chartData = calories?.dataPoints?.slice(-chartPointCount) ?? [];
 
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
@@ -145,14 +132,62 @@ export default function NutritionScreen() {
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
-            refreshing={caloriesTrend.isRefetching || macroDistribution.isRefetching}
+            refreshing={
+              caloriesTrend.isRefetching ||
+              macroDistribution.isRefetching ||
+              dashboardSummary.isRefetching
+            }
             onRefresh={handleRefresh}
           />
         }
       >
-        {/* Period Selector */}
+        {/* Calorie Overview Card */}
+        <CalorieOverviewCard
+          current={caloriesCurrent}
+          goal={caloriesGoal}
+          showLogButton={true}
+          onLogPress={handleLogFood}
+          style={styles.card}
+        />
+
+        {/* Macros Section */}
+        <Text style={styles.sectionLabel}>MACROS</Text>
+
+        {todayMacros ? (
+          <>
+            <MacroProgressCard
+              macro="protein"
+              current={todayMacros.protein.consumed}
+              goal={todayMacros.protein.goal}
+              style={styles.macroCard}
+            />
+            <MacroProgressCard
+              macro="carbs"
+              current={todayMacros.carbs.consumed}
+              goal={todayMacros.carbs.goal}
+              style={styles.macroCard}
+            />
+            <MacroProgressCard
+              macro="fat"
+              current={todayMacros.fat.consumed}
+              goal={todayMacros.fat.goal}
+              style={styles.macroCard}
+            />
+          </>
+        ) : (
+          <View style={[styles.card, styles.emptyChart]}>
+            <Text style={styles.emptyChartText}>
+              Log your meals to see macro progress
+            </Text>
+          </View>
+        )}
+
+        {/* Analytics Section */}
+        <Text style={styles.sectionLabel}>ANALYTICS</Text>
+
+        {/* Calorie Trend Chart */}
         <View style={styles.card}>
-          <Text style={styles.sectionTitle}>Calorie Intake</Text>
+          <Text style={styles.sectionTitle}>Calorie Trend</Text>
           <PeriodSelector
             value={period}
             onChange={setPeriod}
@@ -167,36 +202,15 @@ export default function NutritionScreen() {
           {/* Bar Chart */}
           {chartData.length > 0 ? (
             <View style={styles.chartContainer}>
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={period !== '7d'}
-                contentContainerStyle={styles.chartScrollContent}
-              >
-                <BarChart
-                  data={barChartData}
-                  width={Math.max(screenWidth - 64, chartData.length * 12)}
-                  height={180}
-                  yAxisLabel=""
-                  yAxisSuffix=""
-                  chartConfig={{
-                    backgroundColor: '#FFFFFF',
-                    backgroundGradientFrom: '#FFFFFF',
-                    backgroundGradientTo: '#FFFFFF',
-                    decimalPlaces: 0,
-                    color: () => '#007AFF',
-                    labelColor: () => '#8E8E93',
-                    barPercentage: period === '7d' ? 0.6 : 0.8,
-                    propsForBackgroundLines: {
-                      strokeDasharray: '',
-                      stroke: '#E5E5EA',
-                      strokeWidth: 1,
-                    },
-                  }}
-                  style={styles.chart}
-                  showValuesOnTopOfBars={false}
-                  fromZero
-                />
-              </ScrollView>
+              <InteractiveBarChart
+                data={chartData}
+                height={180}
+                width={screenWidth - 64}
+                dailyGoal={calories?.dailyGoal}
+                barPercentage={period === '7d' ? 0.6 : 0.8}
+                scrollable={period !== '7d'}
+                onBarSelect={handleBarSelect}
+              />
 
               {/* Goal line indicator */}
               <View style={styles.goalLineInfo}>
@@ -205,6 +219,13 @@ export default function NutritionScreen() {
                   Goal: {calories?.dailyGoal?.toLocaleString()} kcal
                 </Text>
               </View>
+
+              {/* Hint for interactive feature */}
+              {!selectedBar && (
+                <Text style={styles.chartHint}>
+                  Tap bars to see details
+                </Text>
+              )}
             </View>
           ) : (
             <View style={styles.emptyChart}>
@@ -296,93 +317,43 @@ export default function NutritionScreen() {
           </View>
         )}
 
-        {/* Macro Distribution */}
+        {/* Average Macro Distribution for Period */}
         {macros?.distribution && (
           <View style={styles.card}>
             <Text style={styles.sectionTitle}>Average Macro Distribution</Text>
+            <Text style={styles.periodNote}>
+              Based on {period === '7d' ? 'last 7 days' : period === '30d' ? 'last 30 days' : 'last 90 days'}
+            </Text>
 
-            {/* Macro Bars */}
-            <View style={styles.macroSection}>
-              {/* Protein */}
-              <View style={styles.macroRow}>
-                <View style={styles.macroInfo}>
-                  <View
-                    style={[styles.macroDot, { backgroundColor: '#34C759' }]}
-                  />
-                  <Text style={styles.macroName}>Protein</Text>
-                </View>
-                <View style={styles.macroBar}>
-                  <View
-                    style={[
-                      styles.macroBarFill,
-                      {
-                        width: `${macros.distribution.protein.percent}%`,
-                        backgroundColor: '#34C759',
-                      },
-                    ]}
-                  />
-                </View>
-                <Text style={styles.macroPercent}>
+            {/* Macro summary bars */}
+            <View style={styles.macroDistributionRow}>
+              <View style={[styles.macroDistributionItem, { backgroundColor: 'rgba(52, 199, 89, 0.1)' }]}>
+                <Text style={[styles.macroDistributionLabel, { color: '#34C759' }]}>Protein</Text>
+                <Text style={styles.macroDistributionValue}>
                   {macros.distribution.protein.percent.toFixed(0)}%
                 </Text>
+                <Text style={styles.macroDistributionGrams}>
+                  ~{Math.round(macros.distribution.protein.grams)}g/day
+                </Text>
               </View>
-              <Text style={styles.macroGrams}>
-                {Math.round(macros.distribution.protein.grams)}g
-              </Text>
-
-              {/* Carbs */}
-              <View style={styles.macroRow}>
-                <View style={styles.macroInfo}>
-                  <View
-                    style={[styles.macroDot, { backgroundColor: '#5856D6' }]}
-                  />
-                  <Text style={styles.macroName}>Carbs</Text>
-                </View>
-                <View style={styles.macroBar}>
-                  <View
-                    style={[
-                      styles.macroBarFill,
-                      {
-                        width: `${macros.distribution.carbs.percent}%`,
-                        backgroundColor: '#5856D6',
-                      },
-                    ]}
-                  />
-                </View>
-                <Text style={styles.macroPercent}>
+              <View style={[styles.macroDistributionItem, { backgroundColor: 'rgba(88, 86, 214, 0.1)' }]}>
+                <Text style={[styles.macroDistributionLabel, { color: '#5856D6' }]}>Carbs</Text>
+                <Text style={styles.macroDistributionValue}>
                   {macros.distribution.carbs.percent.toFixed(0)}%
                 </Text>
-              </View>
-              <Text style={styles.macroGrams}>
-                {Math.round(macros.distribution.carbs.grams)}g
-              </Text>
-
-              {/* Fat */}
-              <View style={styles.macroRow}>
-                <View style={styles.macroInfo}>
-                  <View
-                    style={[styles.macroDot, { backgroundColor: '#FF3B30' }]}
-                  />
-                  <Text style={styles.macroName}>Fat</Text>
-                </View>
-                <View style={styles.macroBar}>
-                  <View
-                    style={[
-                      styles.macroBarFill,
-                      {
-                        width: `${macros.distribution.fat.percent}%`,
-                        backgroundColor: '#FF3B30',
-                      },
-                    ]}
-                  />
-                </View>
-                <Text style={styles.macroPercent}>
-                  {macros.distribution.fat.percent.toFixed(0)}%
+                <Text style={styles.macroDistributionGrams}>
+                  ~{Math.round(macros.distribution.carbs.grams)}g/day
                 </Text>
               </View>
-              <Text style={styles.macroGrams}>
-                {Math.round(macros.distribution.fat.grams)}g
-              </Text>
+              <View style={[styles.macroDistributionItem, { backgroundColor: 'rgba(255, 59, 48, 0.1)' }]}>
+                <Text style={[styles.macroDistributionLabel, { color: '#FF3B30' }]}>Fat</Text>
+                <Text style={styles.macroDistributionValue}>
+                  {macros.distribution.fat.percent.toFixed(0)}%
+                </Text>
+                <Text style={styles.macroDistributionGrams}>
+                  ~{Math.round(macros.distribution.fat.grams)}g/day
+                </Text>
+              </View>
             </View>
           </View>
         )}
@@ -392,10 +363,10 @@ export default function NutritionScreen() {
           <View style={styles.card}>
             <Text style={styles.sectionTitle}>Recent Days</Text>
 
-            {chartData.slice().reverse().map((day) => (
+            {chartData.slice(-7).reverse().map((day) => (
               <View key={day.date} style={styles.dayRow}>
                 <Text style={styles.dayDate}>
-                  {new Date(day.date).toLocaleDateString('en-US', {
+                  {new Date(day.date + 'T00:00:00').toLocaleDateString('en-US', {
                     weekday: 'short',
                     month: 'short',
                     day: 'numeric',
@@ -463,6 +434,19 @@ const styles = StyleSheet.create({
     padding: 16,
     marginBottom: 16,
   },
+  macroCard: {
+    marginBottom: 12,
+  },
+  sectionLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#8E8E93',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginHorizontal: 16,
+    marginTop: 8,
+    marginBottom: 12,
+  },
   sectionTitle: {
     fontSize: 17,
     fontWeight: '600',
@@ -470,6 +454,12 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   periodSelector: {
+    marginBottom: 16,
+  },
+  periodNote: {
+    fontSize: 13,
+    color: '#8E8E93',
+    marginTop: -8,
     marginBottom: 16,
   },
   chartContainer: {
@@ -495,6 +485,12 @@ const styles = StyleSheet.create({
   goalLineText: {
     fontSize: 12,
     color: '#8E8E93',
+  },
+  chartHint: {
+    fontSize: 12,
+    color: '#C7C7CC',
+    marginTop: 8,
+    fontStyle: 'italic',
   },
   emptyChart: {
     height: 180,
@@ -568,52 +564,30 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: 'bold',
   },
-  macroSection: {
-    gap: 8,
-  },
-  macroRow: {
+  macroDistributionRow: {
     flexDirection: 'row',
-    alignItems: 'center',
     gap: 12,
   },
-  macroInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    width: 80,
-  },
-  macroDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-  },
-  macroName: {
-    fontSize: 14,
-    color: '#000000',
-  },
-  macroBar: {
+  macroDistributionItem: {
     flex: 1,
-    height: 8,
-    backgroundColor: '#E5E5EA',
-    borderRadius: 4,
-    overflow: 'hidden',
+    borderRadius: 12,
+    padding: 12,
+    alignItems: 'center',
   },
-  macroBarFill: {
-    height: '100%',
-    borderRadius: 4,
-  },
-  macroPercent: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#000000',
-    width: 36,
-    textAlign: 'right',
-  },
-  macroGrams: {
+  macroDistributionLabel: {
     fontSize: 12,
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+  macroDistributionValue: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#000000',
+  },
+  macroDistributionGrams: {
+    fontSize: 11,
     color: '#8E8E93',
-    marginLeft: 88,
-    marginBottom: 8,
+    marginTop: 2,
   },
   dayRow: {
     flexDirection: 'row',

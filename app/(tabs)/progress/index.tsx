@@ -20,9 +20,11 @@ import {
   BodyCompCard,
   PhotoGrid,
   PhotoEmptyState,
+  CalorieOverviewCard,
+  MacroProgressCard,
 } from '../../../src/components/progress';
 import { useLatestBodyMetrics, useBodyMetricsTrends, usePhotoTimeline } from '../../../src/hooks/useBodyMetrics';
-import { useWeightTrend, useCalorieIntakeTrend, useWorkoutSummary } from '../../../src/hooks/useAnalytics';
+import { useWeightTrend, useCalorieIntakeTrend, useWorkoutSummary, useDashboardSummary } from '../../../src/hooks/useAnalytics';
 import type { Period } from '../../../src/types/analytics';
 
 type TabType = 'body' | 'nutrition' | 'workouts';
@@ -43,6 +45,7 @@ export default function ProgressScreen() {
 
   // Nutrition data
   const caloriesTrend = useCalorieIntakeTrend(period);
+  const dashboardSummary = useDashboardSummary();
 
   // Workouts data
   const workoutsSummary = useWorkoutSummary(period);
@@ -55,6 +58,7 @@ export default function ProgressScreen() {
       weightTrend.refetch(),
       photoTimeline.refetch(),
       caloriesTrend.refetch(),
+      dashboardSummary.refetch(),
       workoutsSummary.refetch(),
     ]);
     setIsRefreshing(false);
@@ -64,6 +68,7 @@ export default function ProgressScreen() {
     weightTrend,
     photoTimeline,
     caloriesTrend,
+    dashboardSummary,
     workoutsSummary,
   ]);
 
@@ -251,10 +256,15 @@ export default function ProgressScreen() {
     );
   };
 
+  const handleLogFood = useCallback(() => {
+    router.push('/diary');
+  }, [router]);
+
   const renderNutritionTab = () => {
     const calories = caloriesTrend.data;
+    const todayData = dashboardSummary.data?.today;
 
-    if (caloriesTrend.isLoading && !calories) {
+    if ((caloriesTrend.isLoading || dashboardSummary.isLoading) && !calories && !todayData) {
       return (
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#007AFF" />
@@ -263,11 +273,62 @@ export default function ProgressScreen() {
       );
     }
 
+    // Use today's data from dashboard summary for current day progress
+    const caloriesCurrent = todayData?.caloriesConsumed ?? 0;
+    const caloriesGoal = todayData?.calorieGoal ?? 2000;
+    const macros = todayData?.macros;
+
     return (
       <>
+        {/* Calorie Overview Card */}
+        <CalorieOverviewCard
+          current={caloriesCurrent}
+          goal={caloriesGoal}
+          showLogButton={true}
+          onLogPress={handleLogFood}
+          style={styles.card}
+        />
+
+        {/* Macros Section Label */}
+        <Text style={styles.sectionLabel}>MACROS</Text>
+
+        {/* Macro Progress Cards */}
+        {macros ? (
+          <>
+            <MacroProgressCard
+              macro="protein"
+              current={macros.protein.consumed}
+              goal={macros.protein.goal}
+              style={styles.macroCard}
+            />
+            <MacroProgressCard
+              macro="carbs"
+              current={macros.carbs.consumed}
+              goal={macros.carbs.goal}
+              style={styles.macroCard}
+            />
+            <MacroProgressCard
+              macro="fat"
+              current={macros.fat.consumed}
+              goal={macros.fat.goal}
+              style={styles.macroCard}
+            />
+          </>
+        ) : (
+          <View style={[styles.card, styles.emptyChart]}>
+            <Text style={styles.emptyChartText}>
+              Log your meals to see macro progress
+            </Text>
+          </View>
+        )}
+
+        {/* Analytics Section Label */}
+        <Text style={styles.sectionLabel}>ANALYTICS</Text>
+
+        {/* Analytics Card */}
         <View style={styles.card}>
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Calorie Intake</Text>
+            <Text style={styles.sectionTitle}>Calorie Trend</Text>
             <TouchableOpacity
               style={styles.seeAllButton}
               onPress={handleSeeNutrition}
@@ -571,6 +632,19 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#8E8E93',
     marginTop: 4,
+  },
+  sectionLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#8E8E93',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginHorizontal: 16,
+    marginTop: 8,
+    marginBottom: 12,
+  },
+  macroCard: {
+    marginBottom: 12,
   },
   workoutSummary: {
     gap: 16,
