@@ -6,6 +6,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { Button, StepIndicator, RadioGroup } from '../../../src/components/ui';
 import { useRegistrationStore } from '../../../src/stores/registrationStore';
 import { useAuth } from '../../../src/hooks/useAuth';
+import profileService from '../../../src/services/profileService';
+import bodyMetricsService from '../../../src/services/bodyMetricsService';
 import {
   ACTIVITY_LEVEL_DATA,
   FITNESS_GOAL_DATA,
@@ -71,11 +73,49 @@ export default function RegisterStep4Screen() {
     setGoalsData(activityLevel, goalType, goalType !== 'MAINTAIN' ? intensity || 'NORMAL' : undefined);
 
     try {
+      // Step 1: Register the account (creates user with email, password, name)
       await register({
         email: data.email,
         password: data.password,
         name: data.name,
       });
+
+      // Step 2: Persist all collected profile data after successful registration
+      // The user is now authenticated, so we can call the profile APIs
+      try {
+        // Update profile metrics (date of birth, sex, height)
+        if (data.dateOfBirth && data.sex && data.heightCm) {
+          await profileService.updateMetrics({
+            dateOfBirth: data.dateOfBirth,
+            sex: data.sex,
+            heightCm: Math.round(data.heightCm),
+          });
+        }
+
+        // Update activity level
+        await profileService.updateActivityLevel({
+          activityLevel,
+        });
+
+        // Update fitness goal
+        await profileService.updateFitnessGoal({
+          type: goalType,
+          intensity: goalType !== 'MAINTAIN' ? intensity || 'NORMAL' : null,
+        });
+
+        // Log initial body weight
+        if (data.currentWeight) {
+          const today = new Date().toISOString().split('T')[0];
+          await bodyMetricsService.createBodyMetrics({
+            date: today,
+            weightKg: data.currentWeight,
+          });
+        }
+      } catch (profileError) {
+        // Profile updates failed but registration succeeded
+        // User can still use the app and update their profile later
+        console.warn('Failed to save profile data:', profileError);
+      }
 
       // Reset registration state
       reset();

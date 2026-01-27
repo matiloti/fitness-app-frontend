@@ -5,7 +5,7 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import Slider from '@react-native-community/slider';
-import { SegmentedControl } from '../../../src/components/ui';
+import { SegmentedControl, SettingsRow } from '../../../src/components/ui';
 import { useProfile } from '../../../src/hooks/useProfile';
 import { HEIGHT_MIN_CM, HEIGHT_MAX_CM, CM_TO_INCHES } from '../../../src/constants';
 import type { Sex } from '../../../src/types';
@@ -253,9 +253,35 @@ export default function EditMetricsScreen() {
               {errors.height && <Text className="text-xs text-red-500 mt-1">{errors.height}</Text>}
             </View>
 
-            <Text className="text-xs text-gray-400 text-center">
+            <Text className="text-xs text-gray-400 text-center mb-6">
               Your BMR will be recalculated based on these metrics
             </Text>
+
+            {/* Weight Section - Link to Body Metrics */}
+            <View className="mb-6">
+              <Text className="text-sm font-medium text-gray-600 mb-2">Weight</Text>
+              <View className="rounded-xl overflow-hidden">
+                <SettingsRow
+                  title="Log Body Metrics"
+                  subtitle="Track your weight, body fat, and progress photos"
+                  icon="scale-outline"
+                  iconColor="#3B82F6"
+                  onPress={() => {
+                    // Navigate to body metrics screen (to be implemented in Phase 2)
+                    Alert.alert(
+                      'Coming Soon',
+                      'Body metrics tracking will be available in a future update. Your weight and body composition can be logged there.',
+                      [{ text: 'OK' }]
+                    );
+                  }}
+                  isFirst
+                  isLast
+                />
+              </View>
+              <Text className="text-xs text-gray-400 mt-2 text-center">
+                Weight changes over time and is tracked separately in Body Metrics
+              </Text>
+            </View>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
