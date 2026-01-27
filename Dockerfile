@@ -20,6 +20,10 @@ COPY . .
 # -----------------------------------------------------------------------------
 FROM base AS dev
 
+# CI=1 tells Expo it's running in CI mode, skipping interactive prompts
+# This prevents the "Log in / Proceed anonymously" prompt in Expo SDK 54+
+ENV CI=1
+
 # Expo SDK 51+ only requires port 8081 for Metro bundler
 # (DevTools ports 19000-19002 were removed in SDK 51)
 EXPOSE 8081
