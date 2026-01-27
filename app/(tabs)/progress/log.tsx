@@ -25,10 +25,44 @@ import {
 } from '../../../src/hooks/useBodyMetrics';
 
 type PhotoPosition = 'FRONT' | 'BACK' | 'LEFT' | 'RIGHT';
+type WeightUnit = 'kg' | 'lb';
+type BodyCompUnit = '%' | 'kg';
 
 interface PhotoData {
   uri: string;
   position: PhotoPosition;
+}
+
+// Conversion constants
+const KG_TO_LB = 2.20462;
+const LB_TO_KG = 1 / KG_TO_LB;
+
+// Convert between weight units
+function convertWeight(value: number, from: WeightUnit, to: WeightUnit): number {
+  if (from === to) return value;
+  if (from === 'kg' && to === 'lb') return value * KG_TO_LB;
+  return value * LB_TO_KG;
+}
+
+// Get slider bounds for weight based on unit
+function getWeightBounds(unit: WeightUnit): { min: number; max: number; step: number } {
+  if (unit === 'kg') {
+    return { min: 30, max: 200, step: 0.1 };
+  }
+  return { min: 66, max: 440, step: 0.2 }; // ~30kg and ~200kg in lb
+}
+
+// Get slider bounds for body composition based on unit
+function getBodyCompBounds(unit: BodyCompUnit, type: 'fat' | 'muscle'): { min: number; max: number; step: number } {
+  if (unit === '%') {
+    return type === 'fat'
+      ? { min: 3, max: 50, step: 0.1 }
+      : { min: 20, max: 60, step: 0.1 };
+  }
+  // Absolute values in kg
+  return type === 'fat'
+    ? { min: 1, max: 100, step: 0.1 }
+    : { min: 10, max: 80, step: 0.1 };
 }
 
 export default function LogMetricsScreen() {
@@ -44,6 +78,10 @@ export default function LogMetricsScreen() {
   const [isSaving, setIsSaving] = useState(false);
   // Track if form has been initialized for the current date
   const [initializedForDate, setInitializedForDate] = useState<string | null>(null);
+  // Unit preferences
+  const [weightUnit, setWeightUnit] = useState<WeightUnit>('kg');
+  const [bodyFatUnit, setBodyFatUnit] = useState<BodyCompUnit>('%');
+  const [muscleMassUnit, setMuscleMassUnit] = useState<BodyCompUnit>('%');
 
   // Queries
   const latestMetrics = useLatestBodyMetrics();
@@ -97,6 +135,28 @@ export default function LogMetricsScreen() {
     setInitializedForDate(date);
   }, [date, selectedDateMetrics.data, selectedDateMetrics.isLoading, latestMetrics.data, latestMetrics.isLoading, initializedForDate]);
 
+  // Unit toggle handlers
+  const handleWeightUnitToggle = useCallback(() => {
+    setWeightUnit((prev) => (prev === 'kg' ? 'lb' : 'kg'));
+  }, []);
+
+  const handleBodyFatUnitToggle = useCallback(() => {
+    setBodyFatUnit((prev) => (prev === '%' ? 'kg' : '%'));
+  }, []);
+
+  const handleMuscleMassUnitToggle = useCallback(() => {
+    setMuscleMassUnit((prev) => (prev === '%' ? 'kg' : '%'));
+  }, []);
+
+  // Get display value for weight based on current unit
+  const displayWeight = weightKg !== null
+    ? convertWeight(weightKg, 'kg', weightUnit)
+    : null;
+
+  const weightBounds = getWeightBounds(weightUnit);
+  const bodyFatBounds = getBodyCompBounds(bodyFatUnit, 'fat');
+  const muscleMassBounds = getBodyCompBounds(muscleMassUnit, 'muscle');
+
   const handleSave = useCallback(async () => {
     if (!weightKg && !bodyFatPercentage && !muscleMassPercentage) {
       Alert.alert('Missing Data', 'Please enter at least one measurement.');
@@ -107,6 +167,9 @@ export default function LogMetricsScreen() {
 
     try {
       // First, save the body metrics to get the metrics ID
+      // Note: We always save in base units (kg for weight, % for body composition)
+      // If user entered absolute kg for body fat/muscle, we would need backend support
+      // For now, we save what we have (which is always in the expected format)
       const savedMetrics = await createMetrics.mutateAsync({
         date,
         weightKg: weightKg ?? undefined,
@@ -268,34 +331,42 @@ export default function LogMetricsScreen() {
         <View style={styles.metricCard}>
           <View style={styles.metricHeader}>
             <Text style={styles.metricLabel}>Weight</Text>
-            <TouchableOpacity style={styles.unitSelector}>
-              <Text style={styles.unitText}>kg</Text>
-              <Ionicons name="chevron-down" size={14} color="#007AFF" />
+            <TouchableOpacity
+              style={styles.unitSelector}
+              onPress={handleWeightUnitToggle}
+              accessibilityLabel={`Switch to ${weightUnit === 'kg' ? 'pounds' : 'kilograms'}`}
+            >
+              <Text style={styles.unitText}>{weightUnit}</Text>
+              <Ionicons name="swap-horizontal" size={14} color="#007AFF" />
             </TouchableOpacity>
           </View>
 
           <Text style={styles.metricValue}>
-            {weightKg !== null ? weightKg.toFixed(1) : '--'} kg
+            {displayWeight !== null ? displayWeight.toFixed(1) : '--'} {weightUnit}
           </Text>
 
           <View style={styles.sliderRow}>
             <TouchableOpacity
               style={styles.stepperButton}
-              onPress={() => setWeightKg((v) => Math.max(30, (v ?? 70) - 0.1))}
+              onPress={() => {
+                const step = weightUnit === 'kg' ? 0.1 : 0.2;
+                const minKg = weightUnit === 'kg' ? 30 : convertWeight(66, 'lb', 'kg');
+                setWeightKg((v) => Math.max(minKg, (v ?? 70) - step));
+              }}
               accessibilityLabel="Decrease weight"
             >
               <Ionicons name="remove" size={20} color="#007AFF" />
             </TouchableOpacity>
             <Slider
               style={styles.slider}
-              minimumValue={30}
-              maximumValue={200}
-              value={weightKg ?? 70}
+              minimumValue={weightBounds.min}
+              maximumValue={weightBounds.max}
+              value={displayWeight ?? (weightUnit === 'kg' ? 70 : 154)}
               onValueChange={(v) => {
-                // Ensure value is a valid number before setting
                 const value = typeof v === 'number' && !isNaN(v) ? Math.round(v * 10) / 10 : null;
-                if (value !== null && value >= 30 && value <= 200) {
-                  setWeightKg(value);
+                if (value !== null && value >= weightBounds.min && value <= weightBounds.max) {
+                  // Convert back to kg for storage
+                  setWeightKg(convertWeight(value, weightUnit, 'kg'));
                 }
               }}
               minimumTrackTintColor="#007AFF"
@@ -304,15 +375,19 @@ export default function LogMetricsScreen() {
             />
             <TouchableOpacity
               style={styles.stepperButton}
-              onPress={() => setWeightKg((v) => Math.min(200, (v ?? 70) + 0.1))}
+              onPress={() => {
+                const step = weightUnit === 'kg' ? 0.1 : 0.2;
+                const maxKg = weightUnit === 'kg' ? 200 : convertWeight(440, 'lb', 'kg');
+                setWeightKg((v) => Math.min(maxKg, (v ?? 70) + step));
+              }}
               accessibilityLabel="Increase weight"
             >
               <Ionicons name="add" size={20} color="#007AFF" />
             </TouchableOpacity>
           </View>
           <View style={styles.sliderLabels}>
-            <Text style={styles.sliderLabel}>30</Text>
-            <Text style={styles.sliderLabel}>200</Text>
+            <Text style={styles.sliderLabel}>{weightBounds.min}</Text>
+            <Text style={styles.sliderLabel}>{weightBounds.max}</Text>
           </View>
         </View>
 
@@ -320,21 +395,25 @@ export default function LogMetricsScreen() {
         <View style={styles.metricCard}>
           <View style={styles.metricHeader}>
             <Text style={styles.metricLabel}>Body Fat</Text>
-            <TouchableOpacity style={styles.unitSelector}>
-              <Text style={styles.unitText}>%</Text>
-              <Ionicons name="chevron-down" size={14} color="#007AFF" />
+            <TouchableOpacity
+              style={styles.unitSelector}
+              onPress={handleBodyFatUnitToggle}
+              accessibilityLabel={`Switch to ${bodyFatUnit === '%' ? 'kilograms' : 'percentage'}`}
+            >
+              <Text style={styles.unitText}>{bodyFatUnit}</Text>
+              <Ionicons name="swap-horizontal" size={14} color="#007AFF" />
             </TouchableOpacity>
           </View>
 
           <Text style={styles.metricValue}>
-            {bodyFatPercentage !== null ? bodyFatPercentage.toFixed(1) : '--'}%
+            {bodyFatPercentage !== null ? bodyFatPercentage.toFixed(1) : '--'}{bodyFatUnit}
           </Text>
 
           <View style={styles.sliderRow}>
             <TouchableOpacity
               style={styles.stepperButton}
               onPress={() =>
-                setBodyFatPercentage((v) => Math.max(3, (v ?? 20) - 0.1))
+                setBodyFatPercentage((v) => Math.max(bodyFatBounds.min, (v ?? 20) - 0.1))
               }
               accessibilityLabel="Decrease body fat"
             >
@@ -342,13 +421,12 @@ export default function LogMetricsScreen() {
             </TouchableOpacity>
             <Slider
               style={styles.slider}
-              minimumValue={3}
-              maximumValue={50}
-              value={bodyFatPercentage ?? 20}
+              minimumValue={bodyFatBounds.min}
+              maximumValue={bodyFatBounds.max}
+              value={bodyFatPercentage ?? (bodyFatUnit === '%' ? 20 : 15)}
               onValueChange={(v) => {
-                // Ensure value is a valid number before setting
                 const value = typeof v === 'number' && !isNaN(v) ? Math.round(v * 10) / 10 : null;
-                if (value !== null && value >= 3 && value <= 50) {
+                if (value !== null && value >= bodyFatBounds.min && value <= bodyFatBounds.max) {
                   setBodyFatPercentage(value);
                 }
               }}
@@ -359,7 +437,7 @@ export default function LogMetricsScreen() {
             <TouchableOpacity
               style={styles.stepperButton}
               onPress={() =>
-                setBodyFatPercentage((v) => Math.min(50, (v ?? 20) + 0.1))
+                setBodyFatPercentage((v) => Math.min(bodyFatBounds.max, (v ?? 20) + 0.1))
               }
               accessibilityLabel="Increase body fat"
             >
@@ -367,8 +445,8 @@ export default function LogMetricsScreen() {
             </TouchableOpacity>
           </View>
           <View style={styles.sliderLabels}>
-            <Text style={styles.sliderLabel}>3%</Text>
-            <Text style={styles.sliderLabel}>50%</Text>
+            <Text style={styles.sliderLabel}>{bodyFatBounds.min}{bodyFatUnit}</Text>
+            <Text style={styles.sliderLabel}>{bodyFatBounds.max}{bodyFatUnit}</Text>
           </View>
         </View>
 
@@ -376,21 +454,25 @@ export default function LogMetricsScreen() {
         <View style={styles.metricCard}>
           <View style={styles.metricHeader}>
             <Text style={styles.metricLabel}>Muscle Mass</Text>
-            <TouchableOpacity style={styles.unitSelector}>
-              <Text style={styles.unitText}>%</Text>
-              <Ionicons name="chevron-down" size={14} color="#007AFF" />
+            <TouchableOpacity
+              style={styles.unitSelector}
+              onPress={handleMuscleMassUnitToggle}
+              accessibilityLabel={`Switch to ${muscleMassUnit === '%' ? 'kilograms' : 'percentage'}`}
+            >
+              <Text style={styles.unitText}>{muscleMassUnit}</Text>
+              <Ionicons name="swap-horizontal" size={14} color="#007AFF" />
             </TouchableOpacity>
           </View>
 
           <Text style={styles.metricValue}>
-            {muscleMassPercentage !== null ? muscleMassPercentage.toFixed(1) : '--'}%
+            {muscleMassPercentage !== null ? muscleMassPercentage.toFixed(1) : '--'}{muscleMassUnit}
           </Text>
 
           <View style={styles.sliderRow}>
             <TouchableOpacity
               style={styles.stepperButton}
               onPress={() =>
-                setMuscleMassPercentage((v) => Math.max(20, (v ?? 40) - 0.1))
+                setMuscleMassPercentage((v) => Math.max(muscleMassBounds.min, (v ?? 40) - 0.1))
               }
               accessibilityLabel="Decrease muscle mass"
             >
@@ -398,13 +480,12 @@ export default function LogMetricsScreen() {
             </TouchableOpacity>
             <Slider
               style={styles.slider}
-              minimumValue={20}
-              maximumValue={60}
-              value={muscleMassPercentage ?? 40}
+              minimumValue={muscleMassBounds.min}
+              maximumValue={muscleMassBounds.max}
+              value={muscleMassPercentage ?? (muscleMassUnit === '%' ? 40 : 30)}
               onValueChange={(v) => {
-                // Ensure value is a valid number before setting
                 const value = typeof v === 'number' && !isNaN(v) ? Math.round(v * 10) / 10 : null;
-                if (value !== null && value >= 20 && value <= 60) {
+                if (value !== null && value >= muscleMassBounds.min && value <= muscleMassBounds.max) {
                   setMuscleMassPercentage(value);
                 }
               }}
@@ -415,7 +496,7 @@ export default function LogMetricsScreen() {
             <TouchableOpacity
               style={styles.stepperButton}
               onPress={() =>
-                setMuscleMassPercentage((v) => Math.min(60, (v ?? 40) + 0.1))
+                setMuscleMassPercentage((v) => Math.min(muscleMassBounds.max, (v ?? 40) + 0.1))
               }
               accessibilityLabel="Increase muscle mass"
             >
@@ -423,8 +504,8 @@ export default function LogMetricsScreen() {
             </TouchableOpacity>
           </View>
           <View style={styles.sliderLabels}>
-            <Text style={styles.sliderLabel}>20%</Text>
-            <Text style={styles.sliderLabel}>60%</Text>
+            <Text style={styles.sliderLabel}>{muscleMassBounds.min}{muscleMassUnit}</Text>
+            <Text style={styles.sliderLabel}>{muscleMassBounds.max}{muscleMassUnit}</Text>
           </View>
         </View>
 
