@@ -42,39 +42,49 @@ export default function EditProfileScreen() {
   };
 
   const handlePickImage = async () => {
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (status !== 'granted') {
-      Alert.alert('Permission Required', 'Please allow access to your photo library to change your profile photo.');
-      return;
-    }
+    try {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission Required', 'Please allow access to your photo library to change your profile photo.');
+        return;
+      }
 
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 0.8,
-    });
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.8,
+      });
 
-    if (!result.canceled && result.assets[0]) {
-      setPhotoUri(result.assets[0].uri);
+      if (!result.canceled && result.assets && result.assets[0]) {
+        setPhotoUri(result.assets[0].uri);
+      }
+    } catch (error) {
+      console.error('Error picking image:', error);
+      Alert.alert('Error', 'Failed to select photo. Please try again.');
     }
   };
 
   const handleTakePhoto = async () => {
-    const { status } = await ImagePicker.requestCameraPermissionsAsync();
-    if (status !== 'granted') {
-      Alert.alert('Permission Required', 'Please allow access to your camera to take a profile photo.');
-      return;
-    }
+    try {
+      const { status } = await ImagePicker.requestCameraPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission Required', 'Please allow access to your camera to take a profile photo.');
+        return;
+      }
 
-    const result = await ImagePicker.launchCameraAsync({
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 0.8,
-    });
+      const result = await ImagePicker.launchCameraAsync({
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.8,
+      });
 
-    if (!result.canceled && result.assets[0]) {
-      setPhotoUri(result.assets[0].uri);
+      if (!result.canceled && result.assets && result.assets[0]) {
+        setPhotoUri(result.assets[0].uri);
+      }
+    } catch (error) {
+      console.error('Error taking photo:', error);
+      Alert.alert('Error', 'Failed to take photo. Please try again.');
     }
   };
 
@@ -106,23 +116,36 @@ export default function EditProfileScreen() {
       // Update photo if changed
       if (photoUri !== profile?.photoUrl) {
         if (photoUri && photoUri !== profile?.photoUrl) {
-          // Upload new photo
+          // Upload new photo - only if it's a local file (not already a URL)
           if (!photoUri.startsWith('http')) {
-            await uploadPhoto(photoUri);
+            try {
+              await uploadPhoto(photoUri);
+            } catch (photoError) {
+              console.error('Failed to upload photo:', photoError);
+              Alert.alert('Photo Upload Failed', 'Could not upload the profile photo. Please try again.');
+              return;
+            }
           }
         } else if (!photoUri && profile?.photoUrl) {
           // Delete photo
-          await deletePhoto();
+          try {
+            await deletePhoto();
+          } catch (deleteError) {
+            console.error('Failed to delete photo:', deleteError);
+            Alert.alert('Error', 'Could not remove the profile photo. Please try again.');
+            return;
+          }
         }
       }
 
-      // Update profile
+      // Update profile name if changed
       if (name !== profile?.name) {
         await updateProfile({ name: name.trim() });
       }
 
       router.back();
     } catch (error) {
+      console.error('Failed to update profile:', error);
       Alert.alert('Error', 'Failed to update profile. Please try again.');
     }
   };
