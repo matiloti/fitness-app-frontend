@@ -18,7 +18,7 @@ const screenWidth = Dimensions.get('window').width;
 
 export default function BodyCompScreen() {
   const [period, setPeriod] = useState<Period>('30d');
-  const { data, isLoading, isRefetching, refetch } = useBodyCompositionTrend(period);
+  const { data, isLoading, isRefetching, refetch, error } = useBodyCompositionTrend(period);
 
   const handleRefresh = useCallback(() => {
     refetch();
@@ -43,6 +43,31 @@ export default function BodyCompScreen() {
           <ActivityIndicator size="large" color="#007AFF" />
           <Text style={styles.loadingText}>Loading body composition...</Text>
         </View>
+      </SafeAreaView>
+    );
+  }
+
+  // Handle error state
+  if (error && !data) {
+    return (
+      <SafeAreaView style={styles.container} edges={['bottom']}>
+        <ScrollView
+          style={styles.scrollView}
+          contentContainerStyle={styles.scrollContent}
+          refreshControl={
+            <RefreshControl refreshing={isRefetching} onRefresh={handleRefresh} />
+          }
+        >
+          <View style={styles.card}>
+            <View style={styles.emptyStateContainer}>
+              <Ionicons name="analytics-outline" size={48} color="#8E8E93" />
+              <Text style={styles.emptyStateTitle}>No Data Yet</Text>
+              <Text style={styles.emptyStateText}>
+                Start logging your body metrics to see your composition trends over time.
+              </Text>
+            </View>
+          </View>
+        </ScrollView>
       </SafeAreaView>
     );
   }
@@ -434,5 +459,22 @@ const styles = StyleSheet.create({
   },
   bottomPadding: {
     height: 40,
+  },
+  emptyStateContainer: {
+    alignItems: 'center',
+    paddingVertical: 32,
+    gap: 12,
+  },
+  emptyStateTitle: {
+    fontSize: 17,
+    fontWeight: '600',
+    color: '#000000',
+  },
+  emptyStateText: {
+    fontSize: 15,
+    color: '#8E8E93',
+    textAlign: 'center',
+    lineHeight: 22,
+    paddingHorizontal: 16,
   },
 });
