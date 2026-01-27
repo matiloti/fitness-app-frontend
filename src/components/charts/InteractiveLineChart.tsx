@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo, useRef } from 'react';
+import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import {
   View,
   StyleSheet,
@@ -212,6 +212,20 @@ export function InteractiveLineChart({
     [dataPointPositions]
   );
 
+  // Store chart page position for tooltip calculations
+  const [chartPagePosition, setChartPagePosition] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+
+  // Update chart page position when layout changes
+  useEffect(() => {
+    if (chartLayout.width > 0) {
+      chartRef.current?.measure((x, y, w, h, pageX, pageY) => {
+        if (pageX != null && pageY != null) {
+          setChartPagePosition({ x: pageX, y: pageY });
+        }
+      });
+    }
+  }, [chartLayout]);
+
   // Handle touch on chart
   const handleChartTouch = useCallback(
     (event: GestureResponderEvent) => {
@@ -223,15 +237,12 @@ export function InteractiveLineChart({
         Haptics.selectionAsync();
         setSelectedIndex(closestIndex);
 
-        // Calculate tooltip position (in screen coordinates)
+        // Calculate tooltip position using stored page position
         const pointPos = dataPointPositions[closestIndex];
         if (pointPos) {
-          // Measure chart position on screen
-          chartRef.current?.measure((x, y, w, h, pageX, pageY) => {
-            setTooltipPosition({
-              x: pageX + pointPos.x,
-              y: pageY + pointPos.y,
-            });
+          setTooltipPosition({
+            x: chartPagePosition.x + pointPos.x,
+            y: chartPagePosition.y + pointPos.y,
           });
         }
 
@@ -243,7 +254,7 @@ export function InteractiveLineChart({
         onDataPointSelect?.(null, null);
       }
     },
-    [findClosestPoint, selectedIndex, dataPointPositions, data, onDataPointSelect]
+    [findClosestPoint, selectedIndex, dataPointPositions, data, onDataPointSelect, chartPagePosition]
   );
 
   // Dismiss tooltip
