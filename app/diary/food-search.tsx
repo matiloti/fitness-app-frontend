@@ -99,8 +99,8 @@ export default function FoodSearchScreen() {
           },
         });
 
-        // Go back
-        router.back();
+        // Navigate back to home to refresh meal data
+        router.dismissAll();
       }
     } catch (error) {
       console.error('Failed to quick add food:', error);
@@ -146,8 +146,8 @@ export default function FoodSearchScreen() {
         },
       });
 
-      // Go back
-      router.back();
+      // Navigate back to home to refresh meal data
+      router.dismissAll();
     }
   }, [mealId, date, mealType, createMeal, addMealItem, router]);
 

@@ -131,9 +131,10 @@ export default function FoodDetailScreen() {
           },
         });
 
-        // Success - go back
-        router.back();
-        router.back(); // Go back to diary
+        // Success - navigate back to home to refresh meal data
+        // Using replace to go directly to home ensures fresh data is loaded
+        // and the back navigation stack is clean for adding more food
+        router.dismissAll();
       }
     } catch (error) {
       console.error('Failed to add food:', error);
