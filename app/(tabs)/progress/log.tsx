@@ -42,6 +42,8 @@ export default function LogMetricsScreen() {
   const [muscleMassPercentage, setMuscleMassPercentage] = useState<number | null>(null);
   const [photos, setPhotos] = useState<PhotoData[]>([]);
   const [isSaving, setIsSaving] = useState(false);
+  // Track if form has been initialized for the current date
+  const [initializedForDate, setInitializedForDate] = useState<string | null>(null);
 
   // Queries
   const latestMetrics = useLatestBodyMetrics();
@@ -49,21 +51,51 @@ export default function LogMetricsScreen() {
   const createMetrics = useCreateBodyMetrics();
   const addPhoto = useAddPhoto();
 
+  // Reset form when date changes
+  useEffect(() => {
+    if (initializedForDate !== null && initializedForDate !== date) {
+      // Date changed, reset form state
+      setWeightKg(null);
+      setBodyFatPercentage(null);
+      setMuscleMassPercentage(null);
+      setPhotos([]);
+      setInitializedForDate(null);
+    }
+  }, [date, initializedForDate]);
+
   // Initialize values from selected date's metrics or latest metrics
   useEffect(() => {
+    // Only initialize if not already initialized for this date
+    if (initializedForDate === date) {
+      return;
+    }
+
+    const isDateDataLoaded = !selectedDateMetrics.isLoading;
+    const isLatestDataLoaded = !latestMetrics.isLoading;
+
+    // Wait for both queries to complete before initializing
+    if (!isDateDataLoaded || !isLatestDataLoaded) {
+      return;
+    }
+
+    // Use date-specific metrics if available, otherwise fall back to latest
     const metrics = selectedDateMetrics.data ?? latestMetrics.data;
+
     if (metrics) {
-      if (weightKg === null && metrics.weightKg) {
+      // Initialize with existing values (use nullish coalescing to handle 0 values)
+      if (metrics.weightKg !== null && metrics.weightKg !== undefined) {
         setWeightKg(metrics.weightKg);
       }
-      if (bodyFatPercentage === null && metrics.bodyFatPercentage) {
+      if (metrics.bodyFatPercentage !== null && metrics.bodyFatPercentage !== undefined) {
         setBodyFatPercentage(metrics.bodyFatPercentage);
       }
-      if (muscleMassPercentage === null && metrics.muscleMassPercentage) {
+      if (metrics.muscleMassPercentage !== null && metrics.muscleMassPercentage !== undefined) {
         setMuscleMassPercentage(metrics.muscleMassPercentage);
       }
     }
-  }, [selectedDateMetrics.data, latestMetrics.data]);
+
+    setInitializedForDate(date);
+  }, [date, selectedDateMetrics.data, selectedDateMetrics.isLoading, latestMetrics.data, latestMetrics.isLoading, initializedForDate]);
 
   const handleSave = useCallback(async () => {
     if (!weightKg && !bodyFatPercentage && !muscleMassPercentage) {
@@ -259,7 +291,13 @@ export default function LogMetricsScreen() {
               minimumValue={30}
               maximumValue={200}
               value={weightKg ?? 70}
-              onValueChange={(v) => setWeightKg(Math.round(v * 10) / 10)}
+              onValueChange={(v) => {
+                // Ensure value is a valid number before setting
+                const value = typeof v === 'number' && !isNaN(v) ? Math.round(v * 10) / 10 : null;
+                if (value !== null && value >= 30 && value <= 200) {
+                  setWeightKg(value);
+                }
+              }}
               minimumTrackTintColor="#007AFF"
               maximumTrackTintColor="#E5E5EA"
               thumbTintColor="#007AFF"
@@ -307,7 +345,13 @@ export default function LogMetricsScreen() {
               minimumValue={3}
               maximumValue={50}
               value={bodyFatPercentage ?? 20}
-              onValueChange={(v) => setBodyFatPercentage(Math.round(v * 10) / 10)}
+              onValueChange={(v) => {
+                // Ensure value is a valid number before setting
+                const value = typeof v === 'number' && !isNaN(v) ? Math.round(v * 10) / 10 : null;
+                if (value !== null && value >= 3 && value <= 50) {
+                  setBodyFatPercentage(value);
+                }
+              }}
               minimumTrackTintColor="#007AFF"
               maximumTrackTintColor="#E5E5EA"
               thumbTintColor="#007AFF"
@@ -357,9 +401,13 @@ export default function LogMetricsScreen() {
               minimumValue={20}
               maximumValue={60}
               value={muscleMassPercentage ?? 40}
-              onValueChange={(v) =>
-                setMuscleMassPercentage(Math.round(v * 10) / 10)
-              }
+              onValueChange={(v) => {
+                // Ensure value is a valid number before setting
+                const value = typeof v === 'number' && !isNaN(v) ? Math.round(v * 10) / 10 : null;
+                if (value !== null && value >= 20 && value <= 60) {
+                  setMuscleMassPercentage(value);
+                }
+              }}
               minimumTrackTintColor="#007AFF"
               maximumTrackTintColor="#E5E5EA"
               thumbTintColor="#007AFF"
