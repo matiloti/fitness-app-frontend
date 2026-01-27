@@ -5,25 +5,19 @@
 // -----------------------------------------------------------------------------
 // Auth Types
 // -----------------------------------------------------------------------------
-export interface User {
-  id: string;
-  email: string;
-  name: string;
-  photoUrl?: string;
-  countryId?: number;
-  dateOfBirth?: string;
-  sex?: "MALE" | "FEMALE";
-  heightCm?: number;
-  defaultActivityLevel: ActivityLevel;
-  fitnessGoalType: FitnessGoalType;
-  fitnessGoalIntensity?: FitnessGoalIntensity;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface AuthTokens {
+export interface AuthResponse {
   accessToken: string;
   refreshToken: string;
+  expiresIn: number;
+  tokenType: string;
+  profile: Profile;
+}
+
+export interface RefreshResponse {
+  accessToken: string;
+  refreshToken: string;
+  expiresIn: number;
+  tokenType: string;
 }
 
 export interface LoginRequest {
@@ -37,38 +31,149 @@ export interface RegisterRequest {
   name: string;
 }
 
+export interface ForgotPasswordRequest {
+  email: string;
+}
+
+export interface ResetPasswordRequest {
+  token: string;
+  newPassword: string;
+}
+
+export interface ChangePasswordRequest {
+  currentPassword: string;
+  newPassword: string;
+}
+
+export interface ChangeEmailRequest {
+  password: string;
+  newEmail: string;
+}
+
+// -----------------------------------------------------------------------------
+// Profile Types
+// -----------------------------------------------------------------------------
+export interface Profile {
+  id: string;
+  email: string;
+  name: string;
+  photoUrl: string | null;
+  country: Country | null;
+  metrics: ProfileMetrics;
+  activityLevel: ActivityLevelInfo;
+  fitnessGoal: FitnessGoalInfo;
+  calculations: ProfileCalculations | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface Country {
+  code: string;
+  name: string;
+}
+
+export interface ProfileMetrics {
+  dateOfBirth: string | null;
+  age: number | null;
+  sex: Sex | null;
+  heightCm: number | null;
+}
+
+export interface ActivityLevelInfo {
+  level: ActivityLevel;
+  multiplier: number;
+  description: string;
+}
+
+export interface FitnessGoalInfo {
+  type: FitnessGoalType;
+  intensity: FitnessGoalIntensity | null;
+  dailyCalorieAdjustment: number;
+  description: string;
+}
+
+export interface ProfileCalculations {
+  bmr: number | null;
+  tdee: number | null;
+  dailyCalorieGoal: number | null;
+  macros: Macros | null;
+}
+
+export interface Macros {
+  protein: number;
+  carbs: number;
+  fat: number;
+}
+
+export interface UpdateProfileRequest {
+  name?: string;
+  photoUrl?: string;
+  countryCode?: string;
+}
+
+export interface UpdateMetricsRequest {
+  dateOfBirth: string;
+  sex: Sex;
+  heightCm: number;
+}
+
+export interface UpdateActivityLevelRequest {
+  activityLevel: ActivityLevel;
+}
+
+export interface UpdateFitnessGoalRequest {
+  type: FitnessGoalType;
+  intensity?: FitnessGoalIntensity | null;
+}
+
 // -----------------------------------------------------------------------------
 // Enum Types
 // -----------------------------------------------------------------------------
-export type Sex = "MALE" | "FEMALE";
+export type Sex = 'MALE' | 'FEMALE';
 
 export type ActivityLevel =
-  | "SEDENTARY"
-  | "LIGHT"
-  | "MODERATE"
-  | "HARD"
-  | "VERY_HARD"
-  | "ATHLETE";
+  | 'SEDENTARY'
+  | 'LIGHT'
+  | 'MODERATE'
+  | 'HARD'
+  | 'VERY_HARD'
+  | 'ATHLETE';
 
-export type FitnessGoalType = "LOSE" | "MAINTAIN" | "GAIN";
+export type FitnessGoalType = 'LOSE' | 'MAINTAIN' | 'GAIN';
 
-export type FitnessGoalIntensity = "SLOW" | "NORMAL" | "HARD" | "EXTREME";
+export type FitnessGoalIntensity = 'SLOW' | 'NORMAL' | 'HARD' | 'EXTREME';
 
-export type MealType = "BREAKFAST" | "LUNCH" | "DINNER" | "SNACK";
+export type MealType = 'BREAKFAST' | 'LUNCH' | 'DINNER' | 'SNACK';
 
 export type WorkoutType =
-  | "STRENGTH"
-  | "CARDIO_RUNNING"
-  | "CARDIO_CYCLING"
-  | "CARDIO_SWIMMING"
-  | "HIIT"
-  | "YOGA"
-  | "PILATES"
-  | "SPORTS"
-  | "WALKING"
-  | "OTHER";
+  | 'STRENGTH'
+  | 'CARDIO_RUNNING'
+  | 'CARDIO_CYCLING'
+  | 'CARDIO_SWIMMING'
+  | 'HIIT'
+  | 'YOGA'
+  | 'PILATES'
+  | 'SPORTS'
+  | 'WALKING'
+  | 'OTHER';
 
-export type MetricType = "GRAMS" | "MILLILITERS";
+export type MetricType = 'GRAMS' | 'MILLILITERS';
+
+// -----------------------------------------------------------------------------
+// Reference Data Types
+// -----------------------------------------------------------------------------
+export interface ActivityLevelOption {
+  level: ActivityLevel;
+  multiplier: number;
+  description: string;
+}
+
+export interface FitnessGoalOption {
+  type: FitnessGoalType;
+  intensity: FitnessGoalIntensity | null;
+  adjustment: number;
+  description: string;
+}
 
 // -----------------------------------------------------------------------------
 // Food Types
@@ -211,7 +316,7 @@ export interface BodyMetrics {
 
 export interface ProgressPhoto {
   id: string;
-  position: "FRONT" | "BACK" | "LEFT" | "RIGHT";
+  position: 'FRONT' | 'BACK' | 'LEFT' | 'RIGHT';
   imageUrl: string;
   createdAt: string;
 }
@@ -246,7 +351,33 @@ export interface PaginatedResponse<T> {
 }
 
 export interface ApiError {
-  message: string;
-  code: string;
-  details?: Record<string, string>;
+  error: {
+    code: string;
+    message: string;
+    timestamp: string;
+    errors?: Record<string, string>;
+  };
+}
+
+// -----------------------------------------------------------------------------
+// Registration Flow Types
+// -----------------------------------------------------------------------------
+export interface RegistrationData {
+  // Step 1: Account
+  email: string;
+  password: string;
+  name: string;
+  photoUrl?: string;
+  countryCode?: string;
+  // Step 2: Metrics
+  dateOfBirth?: string;
+  sex?: Sex;
+  heightCm?: number;
+  // Step 3: Activity Level
+  activityLevel?: ActivityLevel;
+  // Step 4: Goal
+  fitnessGoalType?: FitnessGoalType;
+  fitnessGoalIntensity?: FitnessGoalIntensity;
+  // Weight for calculation
+  currentWeight?: number;
 }
