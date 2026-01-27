@@ -127,6 +127,45 @@ export interface WorkoutListParams {
 }
 
 // =============================================================================
+// Streak & Stats Types (UX-006)
+// =============================================================================
+
+export interface WorkoutStreakResponse {
+  currentStreak: number;
+  longestStreak: number;
+  lastWorkoutDate: string | null;
+  streakStartDate: string | null;
+  isActive: boolean;
+}
+
+export interface WorkoutStatsResponse {
+  totalWorkouts: number;
+  averageDurationMinutes: number;
+  monthlyCalories: number;
+  currentMonth: string;
+  allTimeCalories: number;
+  favoriteWorkoutType: WorkoutType | null;
+}
+
+export interface WeeklyOverviewDay {
+  date: string;
+  dayOfWeek: string;
+  hasWorkout: boolean;
+  workoutType: WorkoutType | null;
+  durationMinutes: number | null;
+  caloriesBurned: number | null;
+}
+
+export interface WeeklyOverviewResponse {
+  weekStartDate: string;
+  weekEndDate: string;
+  days: WeeklyOverviewDay[];
+  totalWorkouts: number;
+  totalDurationMinutes: number;
+  totalCaloriesBurned: number;
+}
+
+// =============================================================================
 // Service
 // =============================================================================
 
@@ -203,6 +242,30 @@ export const workoutService = {
     const response = await api.get<WorkoutSummaryResponse>(`${WORKOUTS_BASE}/summary`, {
       params: { startDate, endDate },
     });
+    return response.data;
+  },
+
+  /**
+   * Get workout streak data
+   */
+  getStreak: async (): Promise<WorkoutStreakResponse> => {
+    const response = await api.get<WorkoutStreakResponse>(`${WORKOUTS_BASE}/streak`);
+    return response.data;
+  },
+
+  /**
+   * Get workout statistics (total, avg duration, monthly calories)
+   */
+  getStats: async (): Promise<WorkoutStatsResponse> => {
+    const response = await api.get<WorkoutStatsResponse>(`${WORKOUTS_BASE}/stats`);
+    return response.data;
+  },
+
+  /**
+   * Get weekly overview with day-by-day workout data
+   */
+  getWeeklyOverview: async (): Promise<WeeklyOverviewResponse> => {
+    const response = await api.get<WeeklyOverviewResponse>(`${WORKOUTS_BASE}/weekly`);
     return response.data;
   },
 };

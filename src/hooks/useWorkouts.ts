@@ -8,6 +8,9 @@ import workoutService, {
   type WorkoutTypesResponse,
   type CalorieEstimateResponse,
   type WorkoutSummaryResponse,
+  type WorkoutStreakResponse,
+  type WorkoutStatsResponse,
+  type WeeklyOverviewResponse,
 } from '../services/workoutService';
 import type { WorkoutType } from '../types';
 
@@ -26,6 +29,9 @@ export const workoutKeys = {
     [...workoutKeys.all, 'estimate', workoutType, durationMinutes] as const,
   summary: (startDate?: string, endDate?: string) =>
     [...workoutKeys.all, 'summary', { startDate, endDate }] as const,
+  streak: () => [...workoutKeys.all, 'streak'] as const,
+  stats: () => [...workoutKeys.all, 'stats'] as const,
+  weekly: () => [...workoutKeys.all, 'weekly'] as const,
 };
 
 // =============================================================================
@@ -92,6 +98,39 @@ export function useWorkoutSummary(startDate?: string, endDate?: string) {
   });
 }
 
+/**
+ * Hook to get workout streak data
+ */
+export function useWorkoutStreak() {
+  return useQuery<WorkoutStreakResponse>({
+    queryKey: workoutKeys.streak(),
+    queryFn: () => workoutService.getStreak(),
+    staleTime: 60 * 1000,
+  });
+}
+
+/**
+ * Hook to get workout statistics
+ */
+export function useWorkoutStats() {
+  return useQuery<WorkoutStatsResponse>({
+    queryKey: workoutKeys.stats(),
+    queryFn: () => workoutService.getStats(),
+    staleTime: 60 * 1000,
+  });
+}
+
+/**
+ * Hook to get weekly overview
+ */
+export function useWeeklyOverview() {
+  return useQuery<WeeklyOverviewResponse>({
+    queryKey: workoutKeys.weekly(),
+    queryFn: () => workoutService.getWeeklyOverview(),
+    staleTime: 60 * 1000,
+  });
+}
+
 // =============================================================================
 // Mutation Hooks
 // =============================================================================
@@ -105,8 +144,11 @@ export function useCreateWorkout() {
   return useMutation<WorkoutDetail, Error, CreateWorkoutRequest>({
     mutationFn: (data) => workoutService.create(data),
     onSuccess: () => {
-      // Invalidate all workout lists
+      // Invalidate all workout lists and dashboard data
       queryClient.invalidateQueries({ queryKey: workoutKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: workoutKeys.streak() });
+      queryClient.invalidateQueries({ queryKey: workoutKeys.stats() });
+      queryClient.invalidateQueries({ queryKey: workoutKeys.weekly() });
       // Invalidate summary
       queryClient.invalidateQueries({ queryKey: workoutKeys.all, predicate: (query) =>
         query.queryKey[1] === 'summary'
@@ -130,8 +172,11 @@ export function useUpdateWorkout() {
     onSuccess: (result) => {
       // Update the detail cache
       queryClient.setQueryData(workoutKeys.detail(result.id), result);
-      // Invalidate lists
+      // Invalidate lists and dashboard data
       queryClient.invalidateQueries({ queryKey: workoutKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: workoutKeys.streak() });
+      queryClient.invalidateQueries({ queryKey: workoutKeys.stats() });
+      queryClient.invalidateQueries({ queryKey: workoutKeys.weekly() });
       // Invalidate summary
       queryClient.invalidateQueries({ queryKey: workoutKeys.all, predicate: (query) =>
         query.queryKey[1] === 'summary'
@@ -161,6 +206,9 @@ export default {
   useWorkoutTypes,
   useCalorieEstimate,
   useWorkoutSummary,
+  useWorkoutStreak,
+  useWorkoutStats,
+  useWeeklyOverview,
   useCreateWorkout,
   useUpdateWorkout,
   useDeleteWorkout,

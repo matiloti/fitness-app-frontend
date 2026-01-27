@@ -24,6 +24,14 @@ export default function WorkoutsLayout() {
           headerBackTitle: 'Workouts',
         }}
       />
+      <Stack.Screen
+        name="history"
+        options={{
+          headerShown: true,
+          headerTitle: 'History',
+          headerBackTitle: 'Workouts',
+        }}
+      />
     </Stack>
   );
 }
