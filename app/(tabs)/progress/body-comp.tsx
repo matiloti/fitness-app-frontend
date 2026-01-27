@@ -295,13 +295,15 @@ export default function BodyCompScreen() {
                   })}
                 </Text>
                 <View style={styles.entryValues}>
-                  <Text style={styles.entryValue}>{entry.weight.toFixed(1)} kg</Text>
-                  {entry.bodyFatPercentage !== null && (
+                  <Text style={styles.entryValue}>
+                    {entry.weight != null ? entry.weight.toFixed(1) : '--'} kg
+                  </Text>
+                  {entry.bodyFatPercentage != null && (
                     <Text style={styles.entryValue}>
                       {entry.bodyFatPercentage.toFixed(1)}% fat
                     </Text>
                   )}
-                  {entry.muscleMassPercentage !== null && (
+                  {entry.muscleMassPercentage != null && (
                     <Text style={styles.entryValue}>
                       {entry.muscleMassPercentage.toFixed(1)}% muscle
                     </Text>
