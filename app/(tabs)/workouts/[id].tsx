@@ -105,7 +105,7 @@ export default function WorkoutDetailScreen() {
           headerTitle: 'Workout',
           headerRight: () => (
             <TouchableOpacity
-              onPress={() => {/* TODO: Navigate to edit screen */}}
+              onPress={() => router.push({ pathname: '/workouts/edit' as any, params: { id } })}
               style={styles.headerButton}
             >
               <Text style={styles.headerButtonText}>Edit</Text>
