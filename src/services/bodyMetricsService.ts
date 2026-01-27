@@ -151,6 +151,7 @@ export const bodyMetricsService = {
 
   /**
    * Get photo timeline for date range
+   * Note: Request a large page size to get all photos without pagination
    */
   getPhotoTimeline: async (
     startDate?: string,
@@ -159,7 +160,15 @@ export const bodyMetricsService = {
   ): Promise<PhotoTimelineResponse> => {
     const response = await api.get<PhotoTimelineResponse>(
       `${BODY_METRICS_BASE}/photos`,
-      { params: { startDate, endDate, position } }
+      {
+        params: {
+          startDate,
+          endDate,
+          position,
+          // Request a large page size to avoid pagination limiting results
+          size: 100,
+        },
+      }
     );
     return response.data;
   },
