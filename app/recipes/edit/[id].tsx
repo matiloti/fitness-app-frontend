@@ -32,31 +32,45 @@ export default function EditRecipeScreen() {
   const deleteIngredient = useDeleteIngredient();
   const deleteStep = useDeleteStep();
 
-  // Form state
+  // Form state - track user edits separately to prevent reset on refetch
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [servings, setServings] = useState(4);
   const [hasChanges, setHasChanges] = useState(false);
+  // Track original values for change detection (won't change on refetch)
+  const [originalValues, setOriginalValues] = useState<{
+    name: string;
+    description: string;
+    servings: number;
+  } | null>(null);
 
-  // Initialize form with recipe data
+  // Initialize form with recipe data only once when first loaded
   useEffect(() => {
-    if (recipe) {
-      setName(recipe.name);
-      setDescription(recipe.description || '');
-      setServings(recipe.totalServings);
+    if (recipe && !originalValues) {
+      const initName = recipe.name;
+      const initDesc = recipe.description || '';
+      const initServings = recipe.totalServings;
+      setName(initName);
+      setDescription(initDesc);
+      setServings(initServings);
+      setOriginalValues({
+        name: initName,
+        description: initDesc,
+        servings: initServings,
+      });
     }
-  }, [recipe]);
+  }, [recipe, originalValues]);
 
-  // Track changes
+  // Track changes against original values (not refetched recipe data)
   useEffect(() => {
-    if (recipe) {
+    if (originalValues) {
       const changed =
-        name !== recipe.name ||
-        description !== (recipe.description || '') ||
-        servings !== recipe.totalServings;
+        name !== originalValues.name ||
+        description !== originalValues.description ||
+        servings !== originalValues.servings;
       setHasChanges(changed);
     }
-  }, [name, description, servings, recipe]);
+  }, [name, description, servings, originalValues]);
 
   const handleBack = useCallback(() => {
     if (hasChanges) {
