@@ -1,12 +1,20 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
   TouchableOpacity,
   StyleSheet,
   Pressable,
+  AccessibilityInfo,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withTiming,
+  Easing,
+} from 'react-native-reanimated';
+import * as Haptics from 'expo-haptics';
 import type { MealType } from '../../types';
 import type { MealItem, MealTotals } from '../../services/mealService';
 
@@ -25,6 +33,11 @@ interface MealCardProps {
   /** When true, shows minimal header with add button visible (for home screen redesign) */
   showHeaderAddButton?: boolean;
 }
+
+// Animation constants
+const ANIMATION_DURATION = 250;
+const COLLAPSED_HEIGHT = 0;
+const EXPANDED_HEIGHT = 1; // Using 0-1 for interpolation
 
 const mealConfig: Record<MealType, { icon: keyof typeof Ionicons.glyphMap; label: string; gradientStart: string; gradientEnd: string; emptyMessage: string }> = {
   BREAKFAST: {
@@ -116,9 +129,86 @@ export function MealCard({
   showHeaderAddButton = false,
 }: MealCardProps) {
   const [collapsed, setCollapsed] = useState(initialCollapsed);
+  const [isReduceMotionEnabled, setIsReduceMotionEnabled] = useState(false);
+
   const config = mealConfig[mealType];
   const itemCount = items.length;
   const isEmpty = itemCount === 0;
+
+  // Animation shared values
+  const expandProgress = useSharedValue(initialCollapsed ? COLLAPSED_HEIGHT : EXPANDED_HEIGHT);
+  const chevronRotation = useSharedValue(initialCollapsed ? 0 : 180);
+
+  // Check for reduced motion preference
+  useEffect(() => {
+    const checkReduceMotion = async () => {
+      const reduceMotion = await AccessibilityInfo.isReduceMotionEnabled();
+      setIsReduceMotionEnabled(reduceMotion);
+    };
+    checkReduceMotion();
+
+    const subscription = AccessibilityInfo.addEventListener(
+      'reduceMotionChanged',
+      (reduceMotion) => setIsReduceMotionEnabled(reduceMotion)
+    );
+
+    return () => {
+      subscription.remove();
+    };
+  }, []);
+
+  // Handle toggle with animation
+  const handleToggle = useCallback(() => {
+    const newCollapsed = !collapsed;
+
+    // Haptic feedback for expand/collapse
+    Haptics.selectionAsync();
+
+    if (isReduceMotionEnabled) {
+      // Skip animation if reduced motion is enabled
+      setCollapsed(newCollapsed);
+      expandProgress.value = newCollapsed ? COLLAPSED_HEIGHT : EXPANDED_HEIGHT;
+      chevronRotation.value = newCollapsed ? 0 : 180;
+    } else {
+      // Animate expand/collapse
+      const timingConfig = {
+        duration: ANIMATION_DURATION,
+        easing: Easing.out(Easing.ease),
+      };
+
+      expandProgress.value = withTiming(
+        newCollapsed ? COLLAPSED_HEIGHT : EXPANDED_HEIGHT,
+        timingConfig
+      );
+      chevronRotation.value = withTiming(
+        newCollapsed ? 0 : 180,
+        timingConfig
+      );
+      setCollapsed(newCollapsed);
+    }
+  }, [collapsed, isReduceMotionEnabled, expandProgress, chevronRotation]);
+
+  // Handle add button press with haptic feedback
+  const handleAddFood = useCallback(() => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    onAddFood?.();
+  }, [onAddFood]);
+
+  // Animated styles for content container
+  const animatedContentStyle = useAnimatedStyle(() => {
+    return {
+      opacity: expandProgress.value,
+      maxHeight: expandProgress.value === 0 ? 0 : undefined,
+      overflow: 'hidden' as const,
+    };
+  });
+
+  // Animated styles for chevron rotation
+  const animatedChevronStyle = useAnimatedStyle(() => {
+    return {
+      transform: [{ rotate: `${chevronRotation.value}deg` }],
+    };
+  });
 
   // Build accessibility label based on state
   const getAccessibilityLabel = () => {
@@ -148,7 +238,7 @@ export function MealCard({
       {/* Header */}
       <Pressable
         style={styles.header}
-        onPress={() => setCollapsed(!collapsed)}
+        onPress={handleToggle}
         accessibilityRole="button"
         accessibilityLabel={getAccessibilityLabel()}
         accessibilityHint={getAccessibilityHint()}
@@ -176,7 +266,7 @@ export function MealCard({
               style={styles.headerAddButton}
               onPress={(e) => {
                 e.stopPropagation();
-                onAddFood?.();
+                handleAddFood();
               }}
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
               accessibilityLabel={`Add food to ${config.label}`}
@@ -208,9 +298,9 @@ export function MealCard({
         </Text>
       </View>
 
-      {/* Items list */}
+      {/* Items list with animation */}
       {!collapsed && (
-        <View style={styles.itemsContainer}>
+        <Animated.View style={[styles.itemsContainer, animatedContentStyle]}>
           {isEmpty ? (
             <View style={styles.emptyState}>
               <Text style={styles.emptyText}>{config.emptyMessage}</Text>
@@ -228,7 +318,7 @@ export function MealCard({
           {/* Add food button */}
           <TouchableOpacity
             style={styles.addButton}
-            onPress={onAddFood}
+            onPress={handleAddFood}
             accessibilityLabel={`Add food to ${config.label}`}
             accessibilityHint="Opens food search to add items to this meal"
             accessibilityRole="button"
@@ -236,18 +326,20 @@ export function MealCard({
             <Ionicons name="add-circle-outline" size={20} color="#007AFF" />
             <Text style={styles.addButtonText}>Add Food</Text>
           </TouchableOpacity>
-        </View>
+        </Animated.View>
       )}
 
       {/* Collapsed state shows expand button */}
       {collapsed && itemCount > 0 && (
         <TouchableOpacity
           style={styles.expandButton}
-          onPress={() => setCollapsed(false)}
+          onPress={handleToggle}
           accessibilityRole="button"
           accessibilityLabel={`Show ${itemCount} items`}
         >
-          <Ionicons name="chevron-down" size={14} color="#8E8E93" />
+          <Animated.View style={animatedChevronStyle}>
+            <Ionicons name="chevron-down" size={14} color="#8E8E93" />
+          </Animated.View>
           <Text style={styles.expandText}>
             Show {itemCount} item{itemCount !== 1 ? 's' : ''}
           </Text>
