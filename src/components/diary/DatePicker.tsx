@@ -11,6 +11,14 @@ import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { addDays, getDateString, useFormattedDate } from '../../hooks/useDays';
 
+/**
+ * Parse a YYYY-MM-DD date string to a Date object at midnight local time
+ */
+function parseDateString(dateStr: string): Date {
+  const [year, month, day] = dateStr.split('-').map(Number);
+  return new Date(year, month - 1, day);
+}
+
 interface DateNavigationProps {
   date: string; // YYYY-MM-DD format
   onDateChange: (date: string) => void;
@@ -142,12 +150,12 @@ export function DateNavigation({
                 </TouchableOpacity>
               </View>
               <DateTimePicker
-                value={new Date(date + 'T00:00:00')}
+                value={parseDateString(date)}
                 mode="date"
                 display="spinner"
                 onChange={handleDateSelect}
-                minimumDate={minDate ? new Date(minDate + 'T00:00:00') : undefined}
-                maximumDate={maxDate ? new Date(maxDate + 'T00:00:00') : undefined}
+                minimumDate={minDate ? parseDateString(minDate) : undefined}
+                maximumDate={maxDate ? parseDateString(maxDate) : undefined}
                 style={styles.datePicker}
               />
             </View>
@@ -156,12 +164,12 @@ export function DateNavigation({
       ) : (
         showPicker && (
           <DateTimePicker
-            value={new Date(date + 'T00:00:00')}
+            value={parseDateString(date)}
             mode="date"
             display="default"
             onChange={handleDateSelect}
-            minimumDate={minDate ? new Date(minDate + 'T00:00:00') : undefined}
-            maximumDate={maxDate ? new Date(maxDate + 'T00:00:00') : undefined}
+            minimumDate={minDate ? parseDateString(minDate) : undefined}
+            maximumDate={maxDate ? parseDateString(maxDate) : undefined}
           />
         )
       )}
@@ -186,7 +194,7 @@ export function WeekCalendar({
 }: WeekCalendarProps) {
   // Generate week days
   const getWeekDays = () => {
-    const selected = new Date(selectedDate + 'T00:00:00');
+    const selected = parseDateString(selectedDate);
     const dayOfWeek = selected.getDay();
     const monday = new Date(selected);
     monday.setDate(selected.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1));

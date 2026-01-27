@@ -170,10 +170,18 @@ export function useRemoveActivityLevel() {
 // =============================================================================
 
 /**
+ * Parse a YYYY-MM-DD date string to a Date object at midnight local time
+ */
+function parseDateString(dateStr: string): Date {
+  const [year, month, day] = dateStr.split('-').map(Number);
+  return new Date(year, month - 1, day);
+}
+
+/**
  * Hook to get formatted date for display
  */
 export function useFormattedDate(date: string) {
-  const dateObj = new Date(date + 'T00:00:00');
+  const dateObj = parseDateString(date);
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
@@ -207,19 +215,23 @@ export function useFormattedDate(date: string) {
 }
 
 /**
- * Get date string in YYYY-MM-DD format
+ * Get date string in YYYY-MM-DD format (using local timezone)
  */
 export function getDateString(date: Date = new Date()): string {
-  return date.toISOString().split('T')[0];
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 }
 
 /**
- * Add days to a date and return YYYY-MM-DD string
+ * Add days to a date and return YYYY-MM-DD string (using local timezone)
  */
-export function addDays(date: string, days: number): string {
-  const d = new Date(date + 'T00:00:00');
+export function addDays(dateStr: string, days: number): string {
+  const [year, month, day] = dateStr.split('-').map(Number);
+  const d = new Date(year, month - 1, day);
   d.setDate(d.getDate() + days);
-  return d.toISOString().split('T')[0];
+  return getDateString(d);
 }
 
 export default {
