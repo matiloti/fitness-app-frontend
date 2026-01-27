@@ -13,7 +13,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useToday, useDay, getDateString, addDays } from '../../src/hooks/useDays';
-import { useMeal } from '../../src/hooks/useMeals';
 import { DateNavigation, WeekCalendar } from '../../src/components/diary/DatePicker';
 import { MealCard } from '../../src/components/diary/MealCard';
 import type { MealType } from '../../src/types';
@@ -226,7 +225,8 @@ export default function DiaryScreen() {
             <MealCard
               key={mealType}
               mealType={mealType}
-              items={[]} // Would fetch full meal items if needed
+              mealId={mealId}
+              itemCount={meal?.itemCount ?? 0}
               totals={
                 meal?.totals as MealTotals || {
                   calories: 0,

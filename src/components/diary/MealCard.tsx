@@ -6,6 +6,7 @@ import {
   StyleSheet,
   Pressable,
   AccessibilityInfo,
+  ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, {
@@ -17,10 +18,16 @@ import Animated, {
 import * as Haptics from 'expo-haptics';
 import type { MealType } from '../../types';
 import type { MealItem, MealTotals } from '../../services/mealService';
+import { useMeal } from '../../hooks/useMeals';
 
 interface MealCardProps {
   mealType: MealType;
-  items: MealItem[];
+  /** Meal ID - when provided, items will be fetched automatically when expanded */
+  mealId?: string;
+  /** Static items - used when mealId is not provided */
+  items?: MealItem[];
+  /** Item count from summary - used for display when items are not yet loaded */
+  itemCount?: number;
   totals: MealTotals;
   isCheatMeal?: boolean;
   time?: string;
@@ -117,7 +124,9 @@ function MealItemRow({
 
 export function MealCard({
   mealType,
-  items,
+  mealId,
+  items: staticItems,
+  itemCount: propItemCount,
   totals,
   isCheatMeal = false,
   time,
@@ -130,9 +139,18 @@ export function MealCard({
 }: MealCardProps) {
   const [collapsed, setCollapsed] = useState(initialCollapsed);
   const [isReduceMotionEnabled, setIsReduceMotionEnabled] = useState(false);
+  const [hasExpanded, setHasExpanded] = useState(!initialCollapsed);
+
+  // Fetch meal details when we have a mealId and have expanded at least once
+  const shouldFetchMeal = !!mealId && hasExpanded;
+  const { data: mealData, isLoading: isMealLoading } = useMeal(shouldFetchMeal ? mealId : undefined);
+
+  // Use fetched items if available, otherwise use static items
+  const items = mealData?.items ?? staticItems ?? [];
 
   const config = mealConfig[mealType];
-  const itemCount = items.length;
+  // Use prop itemCount if provided (from summary), otherwise use items length
+  const itemCount = propItemCount ?? items.length;
   const isEmpty = itemCount === 0;
 
   // Animation shared values
@@ -161,6 +179,11 @@ export function MealCard({
   const handleToggle = useCallback(() => {
     const newCollapsed = !collapsed;
 
+    // Track that we've expanded at least once (to trigger data fetch)
+    if (!newCollapsed && !hasExpanded) {
+      setHasExpanded(true);
+    }
+
     // Haptic feedback for expand/collapse
     Haptics.selectionAsync();
 
@@ -186,7 +209,7 @@ export function MealCard({
       );
       setCollapsed(newCollapsed);
     }
-  }, [collapsed, isReduceMotionEnabled, expandProgress, chevronRotation]);
+  }, [collapsed, isReduceMotionEnabled, expandProgress, chevronRotation, hasExpanded]);
 
   // Handle add button press with haptic feedback
   const handleAddFood = useCallback(() => {
@@ -301,7 +324,12 @@ export function MealCard({
       {/* Items list with animation */}
       {!collapsed && (
         <Animated.View style={[styles.itemsContainer, animatedContentStyle]}>
-          {isEmpty ? (
+          {isMealLoading && mealId ? (
+            <View style={styles.loadingState}>
+              <ActivityIndicator size="small" color="#007AFF" />
+              <Text style={styles.loadingText}>Loading items...</Text>
+            </View>
+          ) : isEmpty ? (
             <View style={styles.emptyState}>
               <Text style={styles.emptyText}>{config.emptyMessage}</Text>
             </View>
@@ -485,6 +513,17 @@ const styles = StyleSheet.create({
   emptyText: {
     fontSize: 15,
     color: '#C7C7CC',
+  },
+  loadingState: {
+    paddingVertical: 16,
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  loadingText: {
+    fontSize: 15,
+    color: '#8E8E93',
   },
   addButton: {
     flexDirection: 'row',

@@ -18,7 +18,7 @@ import { CalorieRing, MacroSummary, MealCard } from '../../src/components/diary'
 import { DateNavigation } from '../../src/components/diary/DatePicker';
 import { getDateString, addDays } from '../../src/hooks/useDays';
 import type { MealType } from '../../src/types';
-import type { MealItem, MealTotals } from '../../src/services/mealService';
+import type { MealTotals } from '../../src/services/mealService';
 
 // All meal types in chronological order
 const MEAL_TYPES: MealType[] = ['BREAKFAST', 'LUNCH', 'DINNER', 'SNACK'];
@@ -167,14 +167,13 @@ export default function TodayDashboardScreen() {
                   fat: 0, // Not available in summary
                 }
               : EMPTY_TOTALS;
-            // Items are not available in DaySummary - use empty for collapsed view
-            const items: MealItem[] = [];
 
             return (
               <MealCard
                 key={mealType}
                 mealType={mealType}
-                items={items}
+                mealId={existingMeal?.id}
+                itemCount={existingMeal?.itemCount ?? 0}
                 totals={totals}
                 isCheatMeal={existingMeal?.isCheatMeal ?? false}
                 onPress={() => handleMealPress(mealType)}
