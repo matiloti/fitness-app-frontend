@@ -177,19 +177,23 @@ export function MealCard({
 
   // Handle toggle with animation
   const handleToggle = useCallback(() => {
+    // Toggle collapsed state - always expand if currently collapsed
     const newCollapsed = !collapsed;
+
+    // Haptic feedback for expand/collapse
+    Haptics.selectionAsync();
+
+    // Set collapsed state immediately
+    setCollapsed(newCollapsed);
 
     // Track that we've expanded at least once (to trigger data fetch)
     if (!newCollapsed && !hasExpanded) {
       setHasExpanded(true);
     }
 
-    // Haptic feedback for expand/collapse
-    Haptics.selectionAsync();
-
+    // Update animation values
     if (isReduceMotionEnabled) {
       // Skip animation if reduced motion is enabled
-      setCollapsed(newCollapsed);
       expandProgress.value = newCollapsed ? COLLAPSED_HEIGHT : EXPANDED_HEIGHT;
       chevronRotation.value = newCollapsed ? 0 : 180;
     } else {
@@ -207,7 +211,6 @@ export function MealCard({
         newCollapsed ? 0 : 180,
         timingConfig
       );
-      setCollapsed(newCollapsed);
     }
   }, [collapsed, isReduceMotionEnabled, expandProgress, chevronRotation, hasExpanded]);
 
@@ -221,7 +224,6 @@ export function MealCard({
   const animatedContentStyle = useAnimatedStyle(() => {
     return {
       opacity: expandProgress.value,
-      maxHeight: expandProgress.value === 0 ? 0 : undefined,
       overflow: 'hidden' as const,
     };
   });
