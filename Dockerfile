@@ -1,7 +1,10 @@
 # =============================================================================
 # FitTrack Pro Frontend - Dockerfile
 # =============================================================================
-# Multi-stage Dockerfile for development and CI/testing
+# This Dockerfile is for CI/testing purposes ONLY.
+# For local development, run Expo directly on your machine:
+#   cd fitness-app-frontend
+#   EXPO_PUBLIC_API_URL=http://<LAN_IP>:8080/api/v1 npx expo start --host lan
 # =============================================================================
 
 FROM node:20-alpine AS base
@@ -14,24 +17,6 @@ RUN npm install --legacy-peer-deps
 
 # Copy source files
 COPY . .
-
-# -----------------------------------------------------------------------------
-# Development Stage - Expo Dev Server for mobile testing
-# -----------------------------------------------------------------------------
-FROM base AS dev
-
-# CI=1 tells Expo it's running in CI mode, skipping interactive prompts
-# This prevents the "Log in / Proceed anonymously" prompt in Expo SDK 54+
-ENV CI=1
-
-# Expo SDK 51+ only requires port 8081 for Metro bundler
-# (DevTools ports 19000-19002 were removed in SDK 51)
-EXPOSE 8081
-
-# Start Expo dev server in LAN mode for physical device testing
-# --host lan: Enables LAN mode (replaces deprecated --lan flag)
-# --non-interactive: Runs without keyboard shortcuts
-CMD ["npx", "expo", "start", "--host", "lan", "--non-interactive"]
 
 # -----------------------------------------------------------------------------
 # Default Stage - runs tests
