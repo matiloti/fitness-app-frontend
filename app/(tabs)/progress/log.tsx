@@ -7,7 +7,7 @@ import {
   TouchableOpacity,
   Alert,
   ActivityIndicator,
-  Platform,
+  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -19,6 +19,7 @@ import {
   useLatestBodyMetrics,
   useBodyMetricsByDate,
   useCreateBodyMetrics,
+  useAddPhoto,
 } from '../../../src/hooks/useBodyMetrics';
 
 type PhotoPosition = 'FRONT' | 'BACK' | 'LEFT' | 'RIGHT';
@@ -38,11 +39,13 @@ export default function LogMetricsScreen() {
   const [bodyFatPercentage, setBodyFatPercentage] = useState<number | null>(null);
   const [muscleMassPercentage, setMuscleMassPercentage] = useState<number | null>(null);
   const [photos, setPhotos] = useState<PhotoData[]>([]);
+  const [isSaving, setIsSaving] = useState(false);
 
   // Queries
   const latestMetrics = useLatestBodyMetrics();
   const todayMetrics = useBodyMetricsByDate(date);
   const createMetrics = useCreateBodyMetrics();
+  const addPhoto = useAddPhoto();
 
   // Initialize values from latest or today's metrics
   useEffect(() => {
@@ -66,23 +69,48 @@ export default function LogMetricsScreen() {
       return;
     }
 
+    setIsSaving(true);
+
     try {
-      await createMetrics.mutateAsync({
+      // First, save the body metrics to get the metrics ID
+      const savedMetrics = await createMetrics.mutateAsync({
         date,
         weightKg: weightKg ?? undefined,
         bodyFatPercentage: bodyFatPercentage ?? undefined,
         muscleMassPercentage: muscleMassPercentage ?? undefined,
       });
 
-      // TODO: Upload photos if any
+      // Upload photos if any
+      if (photos.length > 0 && savedMetrics.id) {
+        const photoUploadPromises = photos.map((photo) =>
+          addPhoto.mutateAsync({
+            metricsId: savedMetrics.id,
+            data: {
+              position: photo.position,
+              // Note: In a production app, you would first upload the image to a storage service
+              // (like S3, Cloudinary, etc.) and then send the URL here.
+              // For now, we're storing the local URI which will work for display but not persistence.
+              imageUrl: photo.uri,
+            },
+          }).catch((err) => {
+            console.error(`Failed to upload ${photo.position} photo:`, err);
+            // Don't throw - we want to continue even if one photo fails
+            return null;
+          })
+        );
+
+        await Promise.all(photoUploadPromises);
+      }
 
       Alert.alert('Success', 'Body metrics saved successfully!', [
         { text: 'OK', onPress: () => router.back() },
       ]);
     } catch (error) {
       Alert.alert('Error', 'Failed to save metrics. Please try again.');
+    } finally {
+      setIsSaving(false);
     }
-  }, [date, weightKg, bodyFatPercentage, muscleMassPercentage, createMetrics, router]);
+  }, [date, weightKg, bodyFatPercentage, muscleMassPercentage, photos, createMetrics, addPhoto, router]);
 
   const handlePickPhoto = useCallback(async (position: PhotoPosition) => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -135,6 +163,25 @@ export default function LogMetricsScreen() {
   }, []);
 
   const handlePhotoAction = useCallback((position: PhotoPosition) => {
+    const existingPhoto = photos.find((p) => p.position === position);
+
+    if (existingPhoto) {
+      // Photo exists - show options to view/remove
+      Alert.alert(
+        `${position.charAt(0) + position.slice(1).toLowerCase()} Photo`,
+        'What would you like to do?',
+        [
+          { text: 'Replace Photo', onPress: () => showPhotoSourceAlert(position) },
+          { text: 'Remove Photo', onPress: () => handleRemovePhoto(position), style: 'destructive' },
+          { text: 'Cancel', style: 'cancel' },
+        ]
+      );
+    } else {
+      showPhotoSourceAlert(position);
+    }
+  }, [photos]);
+
+  const showPhotoSourceAlert = useCallback((position: PhotoPosition) => {
     Alert.alert(
       'Add Photo',
       `Add ${position.toLowerCase()} view photo`,
@@ -341,6 +388,9 @@ export default function LogMetricsScreen() {
         {/* Progress Photos */}
         <View style={styles.photoSection}>
           <Text style={styles.photoSectionTitle}>Progress Photos</Text>
+          <Text style={styles.photoSectionSubtitle}>
+            Track your visual progress with photos from different angles
+          </Text>
           <View style={styles.photoGrid}>
             {(['FRONT', 'BACK', 'LEFT', 'RIGHT'] as PhotoPosition[]).map(
               (position) => {
@@ -355,21 +405,22 @@ export default function LogMetricsScreen() {
                         styles.photoPlaceholder,
                         photo && styles.photoPlaceholderWithImage,
                       ]}
-                      onPress={() =>
-                        photo
-                          ? handleRemovePhoto(position)
-                          : handlePhotoAction(position)
-                      }
+                      onPress={() => handlePhotoAction(position)}
                       accessibilityLabel={
                         photo
-                          ? `Remove ${position.toLowerCase()} photo`
+                          ? `${position.toLowerCase()} photo - tap to change or remove`
                           : `Add ${position.toLowerCase()} photo`
                       }
                     >
                       {photo ? (
                         <>
-                          <View style={styles.photoOverlay}>
-                            <Ionicons name="close-circle" size={24} color="#FF3B30" />
+                          <Image
+                            source={{ uri: photo.uri }}
+                            style={styles.photoImage}
+                            resizeMode="cover"
+                          />
+                          <View style={styles.photoCheckmark}>
+                            <Ionicons name="checkmark-circle" size={20} color="#34C759" />
                           </View>
                         </>
                       ) : (
@@ -381,15 +432,20 @@ export default function LogMetricsScreen() {
               }
             )}
           </View>
+          {photos.length > 0 && (
+            <Text style={styles.photosAddedText}>
+              {photos.length} photo{photos.length !== 1 ? 's' : ''} added
+            </Text>
+          )}
         </View>
 
         {/* Save Button */}
         <View style={styles.buttonContainer}>
           <Button
-            title="Save Metrics"
+            title={isSaving ? 'Saving...' : 'Save Metrics'}
             onPress={handleSave}
-            loading={createMetrics.isPending}
-            disabled={!weightKg && !bodyFatPercentage && !muscleMassPercentage}
+            loading={isSaving}
+            disabled={(!weightKg && !bodyFatPercentage && !muscleMassPercentage) || isSaving}
           />
         </View>
       </ScrollView>
@@ -503,6 +559,11 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '600',
     color: '#000000',
+    marginBottom: 4,
+  },
+  photoSectionSubtitle: {
+    fontSize: 13,
+    color: '#8E8E93',
     marginBottom: 16,
   },
   photoGrid: {
@@ -530,20 +591,30 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#F2F2F7',
+    overflow: 'hidden',
   },
   photoPlaceholderWithImage: {
     borderStyle: 'solid',
-    borderColor: '#FF3B30',
-    backgroundColor: '#F2F2F7',
+    borderColor: '#34C759',
+    backgroundColor: 'transparent',
   },
-  photoOverlay: {
+  photoImage: {
+    width: '100%',
+    height: '100%',
+  },
+  photoCheckmark: {
     position: 'absolute',
-    top: 0,
-    right: 0,
-    bottom: 0,
-    left: 0,
-    alignItems: 'center',
-    justifyContent: 'center',
+    top: 4,
+    right: 4,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 10,
+  },
+  photosAddedText: {
+    fontSize: 13,
+    color: '#34C759',
+    textAlign: 'center',
+    marginTop: 12,
+    fontWeight: '500',
   },
   buttonContainer: {
     marginTop: 8,
