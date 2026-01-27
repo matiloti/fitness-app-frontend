@@ -87,10 +87,10 @@ export function CalorieEstimate({
 
             <TextInput
               style={styles.input}
-              value={actualCalories !== null ? actualCalories.toString() : ''}
+              value={actualCalories != null ? actualCalories.toString() : ''}
               onChangeText={handleActualCaloriesChange}
               keyboardType="number-pad"
-              placeholder={estimatedCalories ? Math.round(estimatedCalories).toString() : '0'}
+              placeholder={estimatedCalories != null ? Math.round(estimatedCalories).toString() : '0'}
               placeholderTextColor="#C7C7CC"
               accessibilityLabel="Custom calories input"
               accessibilityHint="Enter the actual calories burned"
