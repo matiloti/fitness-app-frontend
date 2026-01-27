@@ -99,6 +99,9 @@ export default function TodayDashboardScreen() {
   const consumed = dayData?.consumed || { calories: 0, protein: 0, carbs: 0, fat: 0 };
   const goals = dayData?.goals || { calories: 2000, protein: 150, carbs: 250, fat: 65 };
   const meals = dayData?.meals || [];
+  const workoutCalories = dayData?.workoutCalories || 0;
+  // Net calories = food consumed - workout burned (for calorie budget calculation)
+  const netCalories = dayData?.netCalories ?? consumed.calories;
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -127,6 +130,7 @@ export default function TodayDashboardScreen() {
           <CalorieRing
             consumed={consumed.calories}
             goal={goals.calories}
+            exercise={workoutCalories}
             size={200}
             strokeWidth={16}
           />

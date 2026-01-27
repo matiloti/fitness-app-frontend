@@ -13,6 +13,7 @@ const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 interface CalorieRingProps {
   consumed: number;
   goal: number;
+  exercise?: number; // Calories burned from exercise
   size?: number;
   strokeWidth?: number;
   showLabels?: boolean;
@@ -21,20 +22,24 @@ interface CalorieRingProps {
 export function CalorieRing({
   consumed,
   goal,
+  exercise = 0,
   size = 200,
   strokeWidth = 16,
   showLabels = true,
 }: CalorieRingProps) {
+  // Net calories accounts for exercise: Food - Exercise
+  const netCalories = consumed - exercise;
   const progress = useSharedValue(0);
 
   const radius = (size - strokeWidth) / 2;
   const circumference = 2 * Math.PI * radius;
   const center = size / 2;
 
-  const percentage = Math.min((consumed / goal) * 100, 150); // Cap at 150%
-  const remaining = Math.max(goal - consumed, 0);
-  const isOverGoal = consumed > goal;
-  const isAtGoal = consumed >= goal * 0.95 && consumed <= goal * 1.05;
+  // Progress is calculated based on net calories (food - exercise)
+  const percentage = Math.min((netCalories / goal) * 100, 150); // Cap at 150%
+  const remaining = Math.max(goal - netCalories, 0);
+  const isOverGoal = netCalories > goal;
+  const isAtGoal = netCalories >= goal * 0.95 && netCalories <= goal * 1.05;
 
   // Determine color based on progress
   const getProgressColor = () => {
@@ -68,8 +73,12 @@ export function CalorieRing({
     <View
       style={[styles.container, { width: size, height: size }]}
       accessibilityRole="progressbar"
-      accessibilityLabel={`${consumed} of ${goal} calories consumed, ${remaining} remaining, ${Math.round(percentage)}% of daily goal`}
-      accessibilityValue={{ min: 0, max: goal, now: consumed }}
+      accessibilityLabel={
+        exercise > 0
+          ? `${netCalories} net calories (${consumed} eaten minus ${exercise} burned) of ${goal} goal, ${remaining} remaining, ${Math.round(percentage)}% of daily goal`
+          : `${consumed} of ${goal} calories consumed, ${remaining} remaining, ${Math.round(percentage)}% of daily goal`
+      }
+      accessibilityValue={{ min: 0, max: goal, now: netCalories }}
     >
       <Svg width={size} height={size}>
         <G rotation="-90" origin={`${center}, ${center}`}>
@@ -117,7 +126,15 @@ export function CalorieRing({
 
       {/* Center content */}
       <View style={styles.centerContent}>
-        <Text style={styles.consumedValue}>{consumed.toLocaleString()}</Text>
+        {exercise > 0 ? (
+          // Show net calories when exercise is present
+          <>
+            <Text style={styles.consumedValue}>{netCalories.toLocaleString()}</Text>
+            <Text style={styles.netLabel}>net</Text>
+          </>
+        ) : (
+          <Text style={styles.consumedValue}>{consumed.toLocaleString()}</Text>
+        )}
         <View style={styles.divider} />
         <Text style={styles.goalValue}>{goal.toLocaleString()}</Text>
         <Text style={styles.unitLabel}>kcal</Text>
@@ -128,11 +145,16 @@ export function CalorieRing({
         <View style={styles.statusContainer}>
           <Text style={[styles.statusText, isOverGoal && styles.statusTextOver]}>
             {isOverGoal
-              ? `${(consumed - goal).toLocaleString()} over goal`
+              ? `${(netCalories - goal).toLocaleString()} over goal`
               : `${remaining.toLocaleString()} remaining`}
             {' • '}
             {Math.round(percentage)}% of goal
           </Text>
+          {exercise > 0 && (
+            <Text style={styles.exerciseText}>
+              {consumed.toLocaleString()} eaten - {exercise.toLocaleString()} burned
+            </Text>
+          )}
         </View>
       )}
     </View>
@@ -170,6 +192,11 @@ const styles = StyleSheet.create({
     color: '#AEAEB2',
     marginTop: 2,
   },
+  netLabel: {
+    fontSize: 11,
+    color: '#8E8E93',
+    marginTop: -2,
+  },
   statusContainer: {
     position: 'absolute',
     bottom: -30,
@@ -178,6 +205,11 @@ const styles = StyleSheet.create({
   statusText: {
     fontSize: 15,
     color: '#8E8E93',
+  },
+  exerciseText: {
+    fontSize: 12,
+    color: '#5856D6',
+    marginTop: 2,
   },
   statusTextOver: {
     color: '#FF3B30',
