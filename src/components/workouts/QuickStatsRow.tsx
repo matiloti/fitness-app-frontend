@@ -42,7 +42,8 @@ export function QuickStatsRow({
   onSeeAllPress,
 }: QuickStatsRowProps) {
   // Format duration
-  const formatDuration = (minutes: number): string => {
+  const formatDuration = (minutes: number | null | undefined): string => {
+    if (minutes === null || minutes === undefined) return '0 min';
     if (minutes >= 60) {
       const hours = Math.floor(minutes / 60);
       const mins = Math.round(minutes % 60);
@@ -52,7 +53,8 @@ export function QuickStatsRow({
   };
 
   // Format calories (use k for thousands)
-  const formatCalories = (calories: number): string => {
+  const formatCalories = (calories: number | null | undefined): string => {
+    if (calories === null || calories === undefined) return '0';
     if (calories >= 1000) {
       return `${(calories / 1000).toFixed(1)}k`;
     }
@@ -76,9 +78,9 @@ export function QuickStatsRow({
 
       <View style={styles.statsContainer}>
         <StatCard
-          value={totalWorkouts.toString()}
+          value={(totalWorkouts ?? 0).toString()}
           label="Total Workouts"
-          accessibilityLabel={`${totalWorkouts} total workouts`}
+          accessibilityLabel={`${totalWorkouts ?? 0} total workouts`}
         />
         <StatCard
           value={formatDuration(averageDurationMinutes)}
@@ -88,7 +90,7 @@ export function QuickStatsRow({
         <StatCard
           value={formatCalories(monthlyCalories)}
           label="kcal This Month"
-          accessibilityLabel={`${monthlyCalories} calories burned this month`}
+          accessibilityLabel={`${monthlyCalories ?? 0} calories burned this month`}
         />
       </View>
     </View>
