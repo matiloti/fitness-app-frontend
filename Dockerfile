@@ -1,9 +1,7 @@
 # =============================================================================
 # FitTrack Pro Frontend - Dockerfile
 # =============================================================================
-# For CI/testing purposes - runs tests and linting
-# Note: React Native Expo apps are not typically deployed as Docker containers
-# This is primarily for CI pipelines and testing environments
+# Multi-stage Dockerfile for development and CI/testing
 # =============================================================================
 
 FROM node:20-alpine AS base
@@ -11,13 +9,31 @@ FROM node:20-alpine AS base
 WORKDIR /app
 
 # Install dependencies
-COPY package.json ./
-RUN npm install
+COPY package.json package-lock.json ./
+RUN npm install --legacy-peer-deps
 
 # Copy source files
 COPY . .
 
-# Default command runs tests
+# -----------------------------------------------------------------------------
+# Development Stage - Expo Dev Server for mobile testing
+# -----------------------------------------------------------------------------
+FROM base AS dev
+
+# Expo SDK 51+ only requires port 8081 for Metro bundler
+# (DevTools ports 19000-19002 were removed in SDK 51)
+EXPOSE 8081
+
+# Start Expo dev server in LAN mode for physical device testing
+# --host lan: Enables LAN mode (replaces deprecated --lan flag)
+# --non-interactive: Runs without keyboard shortcuts
+CMD ["npx", "expo", "start", "--host", "lan", "--non-interactive"]
+
+# -----------------------------------------------------------------------------
+# Default Stage - runs tests
+# -----------------------------------------------------------------------------
+FROM base AS default
+
 CMD ["npm", "test"]
 
 # -----------------------------------------------------------------------------
