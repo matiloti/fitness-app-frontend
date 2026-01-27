@@ -5,3 +5,4 @@ export { FoodCard, FoodSearchResult } from './FoodCard';
 export { DateNavigation, WeekCalendar } from './DatePicker';
 export { QuickEntryModal } from './QuickEntryModal';
 export type { QuickEntryData } from './QuickEntryModal';
+export { MealSelectionModal } from './MealSelectionModal';

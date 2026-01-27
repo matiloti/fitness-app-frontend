@@ -12,12 +12,16 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useRecipe, useDeleteRecipe } from '../../src/hooks/useRecipes';
+import { useCreateMeal, useAddMealItem } from '../../src/hooks/useMeals';
+import { getDateString } from '../../src/hooks/useDays';
 import {
   NutritionSummary,
   IngredientList,
   StepList,
 } from '../../src/components/recipes';
+import { MealSelectionModal } from '../../src/components/diary';
 import { SegmentedControl } from '../../src/components/ui';
+import type { MealType } from '../../src/types';
 
 type TabType = 'ingredients' | 'instructions';
 
@@ -26,9 +30,12 @@ export default function RecipeDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const [activeTab, setActiveTab] = useState<TabType>('ingredients');
   const [servings, setServings] = useState(1);
+  const [showMealSelection, setShowMealSelection] = useState(false);
 
   const { data: recipe, isLoading, error } = useRecipe(id);
   const deleteRecipe = useDeleteRecipe();
+  const createMeal = useCreateMeal();
+  const addMealItem = useAddMealItem();
 
   const handleBack = useCallback(() => {
     router.back();
@@ -61,9 +68,34 @@ export default function RecipeDetailScreen() {
   }, [recipe, deleteRecipe, id, router]);
 
   const handleAddToMeal = useCallback(() => {
-    // Navigate to meal selection or add to current meal
-    Alert.alert('Add to Meal', 'This feature will be available soon.');
+    setShowMealSelection(true);
   }, []);
+
+  const handleMealSelected = useCallback(async (mealType: MealType) => {
+    if (!recipe || !id) return;
+
+    const today = getDateString();
+
+    // Create meal for today with selected meal type
+    const meal = await createMeal.mutateAsync({
+      date: today,
+      mealType,
+    });
+
+    // Add recipe to the meal with selected servings
+    await addMealItem.mutateAsync({
+      mealId: meal.id,
+      data: {
+        type: 'RECIPE',
+        recipeId: id,
+        servings,
+      },
+    });
+
+    Alert.alert('Success', `${recipe.name} added to ${mealType.toLowerCase()}.`, [
+      { text: 'OK', onPress: () => router.back() },
+    ]);
+  }, [recipe, id, servings, createMeal, addMealItem, router]);
 
   const incrementServings = useCallback(() => {
     if (servings < 10) {
@@ -262,6 +294,15 @@ export default function RecipeDetailScreen() {
           )}
         </TouchableOpacity>
       </View>
+
+      {/* Meal Selection Modal */}
+      <MealSelectionModal
+        visible={showMealSelection}
+        onClose={() => setShowMealSelection(false)}
+        onSelect={handleMealSelected}
+        itemName={recipe.name}
+        itemCalories={totalNutrition?.calories ?? 0}
+      />
     </SafeAreaView>
   );
 }
