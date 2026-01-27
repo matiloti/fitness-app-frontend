@@ -36,6 +36,11 @@ export default function BodyCompScreen() {
     return `${sign}${value.toFixed(1)}`;
   };
 
+  const formatValue = (value: number | null | undefined): string => {
+    if (value === null || value === undefined) return '--';
+    return value.toFixed(1);
+  };
+
   if (isLoading && !data) {
     return (
       <SafeAreaView style={styles.container}>
@@ -112,155 +117,167 @@ export default function BodyCompScreen() {
 
             <View style={styles.statsGrid}>
               {/* Weight */}
-              <View style={styles.statCard}>
-                <Text style={styles.statLabel}>Weight</Text>
-                <Text style={styles.statValue}>
-                  {stats.weight.end.toFixed(1)}
-                </Text>
-                <Text style={styles.statUnit}>kg</Text>
-                <View style={styles.statChange}>
-                  <Ionicons
-                    name={getTrendIcon(stats.weight.change) as any}
-                    size={14}
-                    color={stats.weight.change < 0 ? '#34C759' : '#FF3B30'}
-                  />
-                  <Text
-                    style={[
-                      styles.statChangeText,
-                      {
-                        color:
-                          stats.weight.change < 0 ? '#34C759' : '#FF3B30',
-                      },
-                    ]}
-                  >
-                    {formatChange(stats.weight.change)} kg
+              {stats.weight && (
+                <View style={styles.statCard}>
+                  <Text style={styles.statLabel}>Weight</Text>
+                  <Text style={styles.statValue}>
+                    {formatValue(stats.weight.end)}
                   </Text>
+                  <Text style={styles.statUnit}>kg</Text>
+                  <View style={styles.statChange}>
+                    <Ionicons
+                      name={getTrendIcon(stats.weight.change ?? 0) as any}
+                      size={14}
+                      color={(stats.weight.change ?? 0) < 0 ? '#34C759' : '#FF3B30'}
+                    />
+                    <Text
+                      style={[
+                        styles.statChangeText,
+                        {
+                          color:
+                            (stats.weight.change ?? 0) < 0 ? '#34C759' : '#FF3B30',
+                        },
+                      ]}
+                    >
+                      {formatChange(stats.weight.change)} kg
+                    </Text>
+                  </View>
                 </View>
-              </View>
+              )}
 
               {/* Body Fat */}
-              <View style={styles.statCard}>
-                <Text style={styles.statLabel}>Body Fat</Text>
-                <Text style={styles.statValue}>
-                  {stats.bodyFat.end.toFixed(1)}
-                </Text>
-                <Text style={styles.statUnit}>%</Text>
-                <View style={styles.statChange}>
-                  <Ionicons
-                    name={getTrendIcon(stats.bodyFat.change) as any}
-                    size={14}
-                    color={stats.bodyFat.change < 0 ? '#34C759' : '#FF3B30'}
-                  />
-                  <Text
-                    style={[
-                      styles.statChangeText,
-                      {
-                        color:
-                          stats.bodyFat.change < 0 ? '#34C759' : '#FF3B30',
-                      },
-                    ]}
-                  >
-                    {formatChange(stats.bodyFat.change)}%
+              {stats.bodyFat && (
+                <View style={styles.statCard}>
+                  <Text style={styles.statLabel}>Body Fat</Text>
+                  <Text style={styles.statValue}>
+                    {formatValue(stats.bodyFat.end)}
                   </Text>
+                  <Text style={styles.statUnit}>%</Text>
+                  <View style={styles.statChange}>
+                    <Ionicons
+                      name={getTrendIcon(stats.bodyFat.change ?? 0) as any}
+                      size={14}
+                      color={(stats.bodyFat.change ?? 0) < 0 ? '#34C759' : '#FF3B30'}
+                    />
+                    <Text
+                      style={[
+                        styles.statChangeText,
+                        {
+                          color:
+                            (stats.bodyFat.change ?? 0) < 0 ? '#34C759' : '#FF3B30',
+                        },
+                      ]}
+                    >
+                      {formatChange(stats.bodyFat.change)}%
+                    </Text>
+                  </View>
                 </View>
-              </View>
+              )}
 
               {/* Muscle Mass */}
-              <View style={styles.statCard}>
-                <Text style={styles.statLabel}>Muscle</Text>
-                <Text style={styles.statValue}>
-                  {stats.muscleMass.end.toFixed(1)}
-                </Text>
-                <Text style={styles.statUnit}>%</Text>
-                <View style={styles.statChange}>
-                  <Ionicons
-                    name={getTrendIcon(stats.muscleMass.change) as any}
-                    size={14}
-                    color={stats.muscleMass.change > 0 ? '#34C759' : '#FF3B30'}
-                  />
-                  <Text
-                    style={[
-                      styles.statChangeText,
-                      {
-                        color:
-                          stats.muscleMass.change > 0
-                            ? '#34C759'
-                            : '#FF3B30',
-                      },
-                    ]}
-                  >
-                    {formatChange(stats.muscleMass.change)}%
+              {stats.muscleMass && (
+                <View style={styles.statCard}>
+                  <Text style={styles.statLabel}>Muscle</Text>
+                  <Text style={styles.statValue}>
+                    {formatValue(stats.muscleMass.end)}
                   </Text>
+                  <Text style={styles.statUnit}>%</Text>
+                  <View style={styles.statChange}>
+                    <Ionicons
+                      name={getTrendIcon(stats.muscleMass.change ?? 0) as any}
+                      size={14}
+                      color={(stats.muscleMass.change ?? 0) > 0 ? '#34C759' : '#FF3B30'}
+                    />
+                    <Text
+                      style={[
+                        styles.statChangeText,
+                        {
+                          color:
+                            (stats.muscleMass.change ?? 0) > 0
+                              ? '#34C759'
+                              : '#FF3B30',
+                        },
+                      ]}
+                    >
+                      {formatChange(stats.muscleMass.change)}%
+                    </Text>
+                  </View>
                 </View>
-              </View>
+              )}
             </View>
           </View>
         )}
 
         {/* Progress Comparison */}
-        {stats && (
+        {stats && (stats.weight || stats.bodyFat || stats.muscleMass) && (
           <View style={styles.card}>
             <Text style={styles.sectionTitle}>Progress Comparison</Text>
 
             {/* Weight Progress */}
-            <View style={styles.progressRow}>
-              <View style={styles.progressInfo}>
-                <Text style={styles.progressLabel}>Weight</Text>
-                <Text style={styles.progressRange}>
-                  {stats.weight.start.toFixed(1)} kg{' '}
-                  <Ionicons name="arrow-forward" size={12} color="#8E8E93" />{' '}
-                  {stats.weight.end.toFixed(1)} kg
+            {stats.weight && (
+              <View style={styles.progressRow}>
+                <View style={styles.progressInfo}>
+                  <Text style={styles.progressLabel}>Weight</Text>
+                  <Text style={styles.progressRange}>
+                    {formatValue(stats.weight.start)} kg{' '}
+                    <Ionicons name="arrow-forward" size={12} color="#8E8E93" />{' '}
+                    {formatValue(stats.weight.end)} kg
+                  </Text>
+                </View>
+                <Text
+                  style={[
+                    styles.progressChange,
+                    { color: (stats.weight.change ?? 0) < 0 ? '#34C759' : '#FF3B30' },
+                  ]}
+                >
+                  {formatChange(stats.weight.changePercent)}%
                 </Text>
               </View>
-              <Text
-                style={[
-                  styles.progressChange,
-                  { color: stats.weight.change < 0 ? '#34C759' : '#FF3B30' },
-                ]}
-              >
-                {formatChange(stats.weight.changePercent)}%
-              </Text>
-            </View>
+            )}
 
             {/* Body Fat Progress */}
-            <View style={styles.progressRow}>
-              <View style={styles.progressInfo}>
-                <Text style={styles.progressLabel}>Body Fat</Text>
-                <Text style={styles.progressRange}>
-                  {stats.bodyFat.start.toFixed(1)}%{' '}
-                  <Ionicons name="arrow-forward" size={12} color="#8E8E93" />{' '}
-                  {stats.bodyFat.end.toFixed(1)}%
+            {stats.bodyFat && (
+              <View style={styles.progressRow}>
+                <View style={styles.progressInfo}>
+                  <Text style={styles.progressLabel}>Body Fat</Text>
+                  <Text style={styles.progressRange}>
+                    {formatValue(stats.bodyFat.start)}%{' '}
+                    <Ionicons name="arrow-forward" size={12} color="#8E8E93" />{' '}
+                    {formatValue(stats.bodyFat.end)}%
+                  </Text>
+                </View>
+                <Text
+                  style={[
+                    styles.progressChange,
+                    { color: (stats.bodyFat.change ?? 0) < 0 ? '#34C759' : '#FF3B30' },
+                  ]}
+                >
+                  {formatChange(stats.bodyFat.changePercent)}%
                 </Text>
               </View>
-              <Text
-                style={[
-                  styles.progressChange,
-                  { color: stats.bodyFat.change < 0 ? '#34C759' : '#FF3B30' },
-                ]}
-              >
-                {formatChange(stats.bodyFat.changePercent)}%
-              </Text>
-            </View>
+            )}
 
             {/* Muscle Mass Progress */}
-            <View style={styles.progressRow}>
-              <View style={styles.progressInfo}>
-                <Text style={styles.progressLabel}>Muscle Mass</Text>
-                <Text style={styles.progressRange}>
-                  {stats.muscleMass.start.toFixed(1)}%{' '}
-                  <Ionicons name="arrow-forward" size={12} color="#8E8E93" />{' '}
-                  {stats.muscleMass.end.toFixed(1)}%
+            {stats.muscleMass && (
+              <View style={styles.progressRow}>
+                <View style={styles.progressInfo}>
+                  <Text style={styles.progressLabel}>Muscle Mass</Text>
+                  <Text style={styles.progressRange}>
+                    {formatValue(stats.muscleMass.start)}%{' '}
+                    <Ionicons name="arrow-forward" size={12} color="#8E8E93" />{' '}
+                    {formatValue(stats.muscleMass.end)}%
+                  </Text>
+                </View>
+                <Text
+                  style={[
+                    styles.progressChange,
+                    { color: (stats.muscleMass.change ?? 0) > 0 ? '#34C759' : '#FF3B30' },
+                  ]}
+                >
+                  {formatChange(stats.muscleMass.changePercent)}%
                 </Text>
               </View>
-              <Text
-                style={[
-                  styles.progressChange,
-                  { color: stats.muscleMass.change > 0 ? '#34C759' : '#FF3B30' },
-                ]}
-              >
-                {formatChange(stats.muscleMass.changePercent)}%
-              </Text>
-            </View>
+            )}
           </View>
         )}
 
