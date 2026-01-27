@@ -160,6 +160,8 @@ export default function LogWorkoutScreen() {
                 display={Platform.OS === 'ios' ? 'spinner' : 'default'}
                 onChange={handleDateChange}
                 maximumDate={new Date()}
+                textColor="#000000"
+                themeVariant="light"
               />
             )}
           </View>

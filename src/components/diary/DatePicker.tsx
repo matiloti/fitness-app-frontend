@@ -157,6 +157,8 @@ export function DateNavigation({
                 minimumDate={minDate ? parseDateString(minDate) : undefined}
                 maximumDate={maxDate ? parseDateString(maxDate) : undefined}
                 style={styles.datePicker}
+                textColor="#000000"
+                themeVariant="light"
               />
             </View>
           </TouchableOpacity>

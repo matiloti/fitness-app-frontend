@@ -142,6 +142,8 @@ export default function RegisterStep2Screen() {
                   }}
                   maximumDate={maxDate}
                   minimumDate={minDate}
+                  textColor="#000000"
+                  themeVariant="light"
                 />
               )}
 
