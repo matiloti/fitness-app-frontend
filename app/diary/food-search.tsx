@@ -14,7 +14,8 @@ import { useRouter, useLocalSearchParams, Stack } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useFoods, useRecentFoods } from '../../src/hooks/useFoods';
 import { useCreateMeal, useAddMealItem } from '../../src/hooks/useMeals';
-import { FoodCard, FoodSearchResult } from '../../src/components/diary/FoodCard';
+import { FoodCard, FoodSearchResult, QuickEntryModal } from '../../src/components/diary';
+import type { QuickEntryData } from '../../src/components/diary';
 import type { MealType } from '../../src/types';
 import type { FoodListItem, RecentFood } from '../../src/services/foodService';
 
@@ -38,6 +39,7 @@ export default function FoodSearchScreen() {
 
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
+  const [showQuickEntry, setShowQuickEntry] = useState(false);
 
   // Debounce search query
   useEffect(() => {
@@ -113,9 +115,41 @@ export default function FoodSearchScreen() {
   }, [router, searchQuery]);
 
   const handleQuickEntry = useCallback(() => {
-    // TODO: Open quick entry sheet
-    console.log('Open quick entry');
+    setShowQuickEntry(true);
   }, []);
+
+  const handleQuickEntrySave = useCallback(async (data: QuickEntryData) => {
+    let targetMealId = mealId;
+
+    // Create meal if doesn't exist
+    if (!targetMealId && date) {
+      const newMeal = await createMeal.mutateAsync({
+        date,
+        mealType,
+      });
+      targetMealId = newMeal.id;
+    }
+
+    if (targetMealId) {
+      // Add quick entry to meal
+      await addMealItem.mutateAsync({
+        mealId: targetMealId,
+        data: {
+          type: 'QUICK_ENTRY',
+          name: data.name,
+          nutrition: {
+            calories: data.calories,
+            fat: data.fat,
+            carbs: data.carbs,
+            protein: data.protein,
+          },
+        },
+      });
+
+      // Go back
+      router.back();
+    }
+  }, [mealId, date, mealType, createMeal, addMealItem, router]);
 
   const handleScanBarcode = useCallback(() => {
     // TODO: Open barcode scanner
@@ -306,6 +340,14 @@ export default function FoodSearchScreen() {
             }
           />
         )}
+
+        {/* Quick Entry Modal */}
+        <QuickEntryModal
+          visible={showQuickEntry}
+          onClose={() => setShowQuickEntry(false)}
+          onSave={handleQuickEntrySave}
+          mealType={mealTypeLabel}
+        />
       </SafeAreaView>
     </>
   );
