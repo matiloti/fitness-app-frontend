@@ -11,7 +11,8 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { useToday } from '../../src/hooks/useDays';
+import { useToday, useDay } from '../../src/hooks/useDays';
+import type { AxiosError } from 'axios';
 import { useAuthStore } from '../../src/stores/authStore';
 import { CalorieRing, MacroSummary, MealCard } from '../../src/components/diary';
 import { DateNavigation } from '../../src/components/diary/DatePicker';
@@ -22,10 +23,17 @@ import type { MealItem, MealTotals } from '../../src/services/mealService';
 export default function TodayDashboardScreen() {
   const router = useRouter();
   const { profile } = useAuthStore();
-  const [selectedDate, setSelectedDate] = useState(getDateString());
-  const isToday = selectedDate === getDateString();
+  const today = getDateString();
+  const [selectedDate, setSelectedDate] = useState(today);
+  const isToday = selectedDate === today;
 
-  const { data: dayData, isLoading, isRefetching, refetch, error } = useToday();
+  // Fetch today's data or specific day's data
+  const todayQuery = useToday();
+  const dayQuery = useDay(isToday ? undefined : selectedDate);
+
+  const { data: dayData, isLoading, isRefetching, refetch, error } = isToday
+    ? todayQuery
+    : dayQuery;
 
   const handleRefresh = useCallback(() => {
     refetch();
@@ -33,12 +41,7 @@ export default function TodayDashboardScreen() {
 
   const handleDateChange = useCallback((newDate: string) => {
     setSelectedDate(newDate);
-    // For non-today dates, would need to fetch specific day
-    // For now, dashboard shows today only
-    if (newDate !== getDateString()) {
-      router.push(`/diary/${newDate}`);
-    }
-  }, [router]);
+  }, []);
 
   const handleMealPress = useCallback((mealType: MealType) => {
     // Navigate to diary with meal type focus
@@ -73,8 +76,11 @@ export default function TodayDashboardScreen() {
     );
   }
 
-  // Error state
-  if (error && !dayData) {
+  // Check if error is a 404 (no data for this day) - treat as empty state, not error
+  const is404Error = error && (error as AxiosError)?.response?.status === 404;
+
+  // Error state (only for non-404 errors)
+  if (error && !dayData && !is404Error) {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.errorContainer}>

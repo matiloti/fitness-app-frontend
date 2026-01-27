@@ -17,6 +17,7 @@ import { DateNavigation, WeekCalendar } from '../../src/components/diary/DatePic
 import { MealCard } from '../../src/components/diary/MealCard';
 import type { MealType } from '../../src/types';
 import type { MealTotals, MealItem } from '../../src/services/mealService';
+import type { AxiosError } from 'axios';
 
 const MEAL_TYPES: MealType[] = ['BREAKFAST', 'LUNCH', 'DINNER', 'SNACK'];
 
@@ -33,6 +34,9 @@ export default function DiaryScreen() {
   const { data: dayData, isLoading, isRefetching, refetch, error } = isToday
     ? todayQuery
     : dayQuery;
+
+  // Check if error is a 404 (no data for this day) - treat as empty state, not error
+  const is404Error = error && (error as AxiosError)?.response?.status === 404;
 
   const handleRefresh = useCallback(() => {
     refetch();
@@ -100,12 +104,30 @@ export default function DiaryScreen() {
   }, [dayData]);
 
   // Loading state
-  if (isLoading && !dayData) {
+  if (isLoading && !dayData && !is404Error) {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#007AFF" />
           <Text style={styles.loadingText}>Loading diary...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  // Error state (only for non-404 errors)
+  if (error && !dayData && !is404Error) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.loadingContainer}>
+          <Ionicons name="warning" size={48} color="#FF9500" />
+          <Text style={styles.errorTitle}>Unable to load diary</Text>
+          <Text style={styles.errorMessage}>
+            Check your connection and try again
+          </Text>
+          <TouchableOpacity style={styles.retryButton} onPress={() => refetch()}>
+            <Text style={styles.retryButtonText}>Try Again</Text>
+          </TouchableOpacity>
         </View>
       </SafeAreaView>
     );
@@ -257,6 +279,29 @@ const styles = StyleSheet.create({
   loadingText: {
     fontSize: 17,
     color: '#8E8E93',
+  },
+  errorTitle: {
+    fontSize: 17,
+    fontWeight: '600',
+    color: '#000',
+    marginTop: 12,
+  },
+  errorMessage: {
+    fontSize: 15,
+    color: '#8E8E93',
+    textAlign: 'center',
+  },
+  retryButton: {
+    backgroundColor: '#007AFF',
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 10,
+    marginTop: 8,
+  },
+  retryButtonText: {
+    fontSize: 17,
+    fontWeight: '600',
+    color: '#FFFFFF',
   },
   header: {
     paddingHorizontal: 16,
