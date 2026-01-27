@@ -106,23 +106,48 @@ export const profileService = {
    * Upload profile photo
    */
   uploadPhoto: async (photoUri: string): Promise<{ photoUrl: string }> => {
+    // Create form data with proper React Native format
     const formData = new FormData();
+
+    // Extract filename and determine MIME type
     const filename = photoUri.split('/').pop() || 'photo.jpg';
     const match = /\.(\w+)$/.exec(filename);
-    const type = match ? `image/${match[1]}` : 'image/jpeg';
+    const extension = match ? match[1].toLowerCase() : 'jpg';
 
+    // Map common extensions to MIME types
+    const mimeTypes: Record<string, string> = {
+      jpg: 'image/jpeg',
+      jpeg: 'image/jpeg',
+      png: 'image/png',
+      gif: 'image/gif',
+      heic: 'image/heic',
+      heif: 'image/heif',
+    };
+    const type = mimeTypes[extension] || 'image/jpeg';
+
+    // Append photo with proper React Native file format
+    // React Native expects the file object in this specific format
     formData.append('photo', {
       uri: photoUri,
       name: filename,
       type,
-    } as unknown as Blob);
+    } as any);
 
-    const response = await api.post<{ photoUrl: string }>(`${PROFILE_BASE}/photo`, formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
-    });
-    return response.data;
+    try {
+      const response = await api.post<{ photoUrl: string }>(`${PROFILE_BASE}/photo`, formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+        // Increase timeout for photo uploads
+        timeout: 30000,
+      });
+      return response.data;
+    } catch (error: any) {
+      console.error('Profile photo upload failed:', error);
+      // Re-throw with more context
+      const message = error?.response?.data?.message || error?.message || 'Failed to upload photo';
+      throw new Error(message);
+    }
   },
 
   /**
