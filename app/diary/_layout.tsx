@@ -4,7 +4,7 @@ export default function DiaryLayout() {
   return (
     <Stack
       screenOptions={{
-        headerBackTitleVisible: true,
+        headerBackTitle: '',
         headerTintColor: '#007AFF',
         headerStyle: {
           backgroundColor: '#FFFFFF',

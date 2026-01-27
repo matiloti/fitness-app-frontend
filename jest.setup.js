@@ -27,7 +27,7 @@ jest.mock('expo-image-picker', () => ({
 }));
 
 // Silence the warning: Animated: `useNativeDriver` is not supported
-jest.mock('react-native/Libraries/Animated/NativeAnimatedHelper');
+// This mock is no longer needed in RN 0.80+ as the module path changed
 
 // Mock @expo/vector-icons
 jest.mock('@expo/vector-icons', () => {
