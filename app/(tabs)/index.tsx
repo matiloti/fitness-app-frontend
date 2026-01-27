@@ -20,6 +20,12 @@ import { getDateString, addDays } from '../../src/hooks/useDays';
 import type { MealType } from '../../src/types';
 import type { MealItem, MealTotals } from '../../src/services/mealService';
 
+// All meal types in chronological order
+const MEAL_TYPES: MealType[] = ['BREAKFAST', 'LUNCH', 'DINNER', 'SNACK'];
+
+// Default empty totals for meals without data
+const EMPTY_TOTALS: MealTotals = { calories: 0, protein: 0, carbs: 0, fat: 0 };
+
 export default function TodayDashboardScreen() {
   const router = useRouter();
   const { profile } = useAuthStore();
@@ -53,14 +59,6 @@ export default function TodayDashboardScreen() {
     router.push({
       pathname: '/diary/food-search',
       params: { mealType, date: selectedDate },
-    });
-  }, [router, selectedDate]);
-
-  const handleFabPress = useCallback(() => {
-    // Open food search
-    router.push({
-      pathname: '/diary/food-search',
-      params: { date: selectedDate },
     });
   }, [router, selectedDate]);
 
@@ -152,35 +150,36 @@ export default function TodayDashboardScreen() {
             </TouchableOpacity>
           </View>
 
-          {meals.length === 0 ? (
-            <View style={styles.emptyMeals}>
-              <Ionicons name="restaurant-outline" size={48} color="#C7C7CC" />
-              <Text style={styles.emptyMealsTitle}>No meals logged yet</Text>
-              <Text style={styles.emptyMealsSubtitle}>
-                Start by adding your breakfast
-              </Text>
-              <TouchableOpacity
-                style={styles.addMealButton}
-                onPress={() => handleAddFood('BREAKFAST')}
-              >
-                <Ionicons name="add" size={20} color="#FFFFFF" />
-                <Text style={styles.addMealButtonText}>Add First Meal</Text>
-              </TouchableOpacity>
-            </View>
-          ) : (
-            meals.map((meal) => (
+          {/* Always render all 4 meal types */}
+          {MEAL_TYPES.map((mealType) => {
+            // Find existing meal data for this type
+            const existingMeal = meals.find((m) => m.mealType === mealType);
+            // DayMealSummary.totals only has calories & protein; extend with defaults
+            const totals: MealTotals = existingMeal?.totals
+              ? {
+                  calories: existingMeal.totals.calories,
+                  protein: existingMeal.totals.protein,
+                  carbs: 0, // Not available in summary
+                  fat: 0, // Not available in summary
+                }
+              : EMPTY_TOTALS;
+            // Items are not available in DaySummary - use empty for collapsed view
+            const items: MealItem[] = [];
+
+            return (
               <MealCard
-                key={meal.id}
-                mealType={meal.mealType}
-                items={[]} // Summary view - no items
-                totals={meal.totals as MealTotals}
-                isCheatMeal={meal.isCheatMeal}
-                onPress={() => handleMealPress(meal.mealType)}
-                onAddFood={() => handleAddFood(meal.mealType)}
+                key={mealType}
+                mealType={mealType}
+                items={items}
+                totals={totals}
+                isCheatMeal={existingMeal?.isCheatMeal ?? false}
+                onPress={() => handleMealPress(mealType)}
+                onAddFood={() => handleAddFood(mealType)}
                 collapsed={true}
+                showHeaderAddButton={true}
               />
-            ))
-          )}
+            );
+          })}
         </View>
 
         {/* Body Metrics Card */}
@@ -244,19 +243,7 @@ export default function TodayDashboardScreen() {
           )}
         </View>
 
-        {/* Bottom padding for FAB */}
-        <View style={styles.bottomPadding} />
       </ScrollView>
-
-      {/* Floating Action Button */}
-      <TouchableOpacity
-        style={styles.fab}
-        onPress={handleFabPress}
-        accessibilityLabel="Add food"
-        accessibilityHint="Double tap to search and add food"
-      >
-        <Ionicons name="add" size={28} color="#FFFFFF" />
-      </TouchableOpacity>
     </SafeAreaView>
   );
 }
@@ -344,38 +331,6 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: '#007AFF',
   },
-  emptyMeals: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 32,
-    alignItems: 'center',
-  },
-  emptyMealsTitle: {
-    fontSize: 17,
-    fontWeight: '600',
-    color: '#000',
-    marginTop: 12,
-  },
-  emptyMealsSubtitle: {
-    fontSize: 15,
-    color: '#8E8E93',
-    marginTop: 4,
-  },
-  addMealButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#007AFF',
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: 10,
-    marginTop: 16,
-    gap: 6,
-  },
-  addMealButtonText: {
-    fontSize: 17,
-    fontWeight: '600',
-    color: '#FFFFFF',
-  },
   metricsCard: {
     backgroundColor: '#FFFFFF',
     borderRadius: 12,
@@ -456,24 +411,5 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: '#007AFF',
     marginTop: 8,
-  },
-  bottomPadding: {
-    height: 80,
-  },
-  fab: {
-    position: 'absolute',
-    bottom: 100,
-    right: 16,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: '#007AFF',
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#007AFF',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 8,
   },
 });

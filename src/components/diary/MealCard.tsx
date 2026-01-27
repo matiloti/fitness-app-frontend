@@ -22,32 +22,38 @@ interface MealCardProps {
   onItemPress?: (item: MealItem) => void;
   onItemSwipeDelete?: (itemId: string) => void;
   collapsed?: boolean;
+  /** When true, shows minimal header with add button visible (for home screen redesign) */
+  showHeaderAddButton?: boolean;
 }
 
-const mealConfig: Record<MealType, { icon: keyof typeof Ionicons.glyphMap; label: string; gradientStart: string; gradientEnd: string }> = {
+const mealConfig: Record<MealType, { icon: keyof typeof Ionicons.glyphMap; label: string; gradientStart: string; gradientEnd: string; emptyMessage: string }> = {
   BREAKFAST: {
     icon: 'sunny',
     label: 'Breakfast',
     gradientStart: '#FFD60A',
     gradientEnd: '#FF9500',
+    emptyMessage: 'Add your first breakfast',
   },
   LUNCH: {
     icon: 'sunny',
     label: 'Lunch',
     gradientStart: '#FF9500',
-    gradientEnd: '#FFD60A',
+    gradientEnd: '#FF6B00',
+    emptyMessage: 'Add your first lunch',
   },
   DINNER: {
     icon: 'moon',
     label: 'Dinner',
     gradientStart: '#AF52DE',
     gradientEnd: '#5856D6',
+    emptyMessage: 'Add your first dinner',
   },
   SNACK: {
     icon: 'nutrition',
     label: 'Snack',
     gradientStart: '#34C759',
     gradientEnd: '#30D158',
+    emptyMessage: 'Add your first snack',
   },
 };
 
@@ -107,10 +113,35 @@ export function MealCard({
   onMorePress,
   onItemPress,
   collapsed: initialCollapsed = false,
+  showHeaderAddButton = false,
 }: MealCardProps) {
   const [collapsed, setCollapsed] = useState(initialCollapsed);
   const config = mealConfig[mealType];
   const itemCount = items.length;
+  const isEmpty = itemCount === 0;
+
+  // Build accessibility label based on state
+  const getAccessibilityLabel = () => {
+    if (isEmpty) {
+      return `${config.label}, no items logged, zero calories`;
+    }
+    return `${config.label}, ${itemCount} items, ${Math.round(totals.calories)} calories, ${Math.round(totals.protein)} grams protein, ${Math.round(totals.carbs)} grams carbs, ${Math.round(totals.fat)} grams fat${isCheatMeal ? ', cheat meal' : ''}`;
+  };
+
+  const getAccessibilityHint = () => {
+    if (isEmpty) {
+      return `Double tap to expand. Use add button to log your first ${config.label.toLowerCase()}`;
+    }
+    return 'Double tap to expand and see items. Swipe right to find add button.';
+  };
+
+  // Format macro summary text
+  const getMacroSummary = () => {
+    if (isEmpty) {
+      return config.emptyMessage;
+    }
+    return `P: ${Math.round(totals.protein)}g  C: ${Math.round(totals.carbs)}g  F: ${Math.round(totals.fat)}g`;
+  };
 
   return (
     <View style={styles.container}>
@@ -119,11 +150,12 @@ export function MealCard({
         style={styles.header}
         onPress={() => setCollapsed(!collapsed)}
         accessibilityRole="button"
-        accessibilityLabel={`${config.label}, ${itemCount} items, ${Math.round(totals.calories)} calories${isCheatMeal ? ', cheat meal' : ''}`}
+        accessibilityLabel={getAccessibilityLabel()}
+        accessibilityHint={getAccessibilityHint()}
       >
         <View style={styles.headerLeft}>
           <View style={[styles.iconContainer, { backgroundColor: config.gradientStart }]}>
-            <Ionicons name={config.icon} size={16} color="white" />
+            <Ionicons name={config.icon} size={18} color="white" />
           </View>
           <View style={styles.headerTextContainer}>
             <View style={styles.titleRow}>
@@ -134,30 +166,54 @@ export function MealCard({
                 </View>
               )}
             </View>
-            <Text style={styles.mealMeta}>
-              {itemCount} item{itemCount !== 1 ? 's' : ''}
-              {time && ` • ${time}`}
-            </Text>
           </View>
         </View>
 
         <View style={styles.headerRight}>
           <Text style={styles.calories}>{Math.round(totals.calories)} kcal</Text>
-          <TouchableOpacity
-            onPress={onMorePress}
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-          >
-            <Ionicons name="ellipsis-horizontal" size={20} color="#8E8E93" />
-          </TouchableOpacity>
+          {showHeaderAddButton ? (
+            <TouchableOpacity
+              style={styles.headerAddButton}
+              onPress={(e) => {
+                e.stopPropagation();
+                onAddFood?.();
+              }}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              accessibilityLabel={`Add food to ${config.label}`}
+              accessibilityHint="Opens food search to add items to this meal"
+              accessibilityRole="button"
+            >
+              <Ionicons name="add-circle" size={24} color="#007AFF" />
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity
+              onPress={onMorePress}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            >
+              <Ionicons name="ellipsis-horizontal" size={20} color="#8E8E93" />
+            </TouchableOpacity>
+          )}
         </View>
       </Pressable>
+
+      {/* Summary Row (always visible) */}
+      <View style={styles.summaryRow}>
+        <Text style={styles.itemCount}>
+          {itemCount} item{itemCount !== 1 ? 's' : ''}
+          {time && ` • ${time}`}
+        </Text>
+        <Text style={styles.macroSeparator}> - </Text>
+        <Text style={[styles.macroSummary, isEmpty && styles.emptyMacroSummary]}>
+          {getMacroSummary()}
+        </Text>
+      </View>
 
       {/* Items list */}
       {!collapsed && (
         <View style={styles.itemsContainer}>
-          {items.length === 0 ? (
+          {isEmpty ? (
             <View style={styles.emptyState}>
-              <Text style={styles.emptyText}>No items logged</Text>
+              <Text style={styles.emptyText}>{config.emptyMessage}</Text>
             </View>
           ) : (
             items.map((item) => (
@@ -174,20 +230,24 @@ export function MealCard({
             style={styles.addButton}
             onPress={onAddFood}
             accessibilityLabel={`Add food to ${config.label}`}
+            accessibilityHint="Opens food search to add items to this meal"
+            accessibilityRole="button"
           >
-            <Ionicons name="add-circle" size={20} color="#007AFF" />
+            <Ionicons name="add-circle-outline" size={20} color="#007AFF" />
             <Text style={styles.addButtonText}>Add Food</Text>
           </TouchableOpacity>
         </View>
       )}
 
       {/* Collapsed state shows expand button */}
-      {collapsed && (
+      {collapsed && itemCount > 0 && (
         <TouchableOpacity
           style={styles.expandButton}
           onPress={() => setCollapsed(false)}
+          accessibilityRole="button"
+          accessibilityLabel={`Show ${itemCount} items`}
         >
-          <Ionicons name="chevron-down" size={16} color="#8E8E93" />
+          <Ionicons name="chevron-down" size={14} color="#8E8E93" />
           <Text style={styles.expandText}>
             Show {itemCount} item{itemCount !== 1 ? 's' : ''}
           </Text>
@@ -203,8 +263,8 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
+    shadowOpacity: 0.08,
+    shadowRadius: 3,
     elevation: 1,
     marginBottom: 12,
   },
@@ -212,8 +272,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 16,
-    paddingBottom: 12,
+    paddingHorizontal: 16,
+    paddingTop: 14,
+    paddingBottom: 0,
   },
   headerLeft: {
     flexDirection: 'row',
@@ -221,9 +282,9 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   iconContainer: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 12,
@@ -252,11 +313,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#FFFFFF',
   },
-  mealMeta: {
-    fontSize: 12,
-    color: '#8E8E93',
-    marginTop: 2,
-  },
   headerRight: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -266,6 +322,35 @@ const styles = StyleSheet.create({
     fontSize: 17,
     fontWeight: '600',
     color: '#007AFF',
+  },
+  headerAddButton: {
+    width: 44,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  summaryRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingTop: 0,
+    paddingBottom: 8,
+    marginLeft: 48, // Align with text after icon
+  },
+  itemCount: {
+    fontSize: 13,
+    color: '#8E8E93',
+  },
+  macroSeparator: {
+    fontSize: 13,
+    color: '#C7C7CC',
+  },
+  macroSummary: {
+    fontSize: 13,
+    color: '#8E8E93',
+  },
+  emptyMacroSummary: {
+    color: '#C7C7CC',
   },
   itemsContainer: {
     borderTopWidth: StyleSheet.hairlineWidth,
@@ -307,13 +392,14 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontSize: 15,
-    color: '#8E8E93',
+    color: '#C7C7CC',
   },
   addButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 12,
+    minHeight: 44,
     gap: 6,
   },
   addButtonText: {
@@ -324,14 +410,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 12,
+    paddingVertical: 8,
+    minHeight: 44,
     gap: 4,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: '#E5E5EA',
   },
   expandText: {
-    fontSize: 13,
-    color: '#8E8E93',
+    fontSize: 12,
+    color: '#C7C7CC',
   },
 });
 
