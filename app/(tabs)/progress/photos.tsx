@@ -37,25 +37,28 @@ export default function PhotosScreen() {
 
   // Group photos by month
   const groupedPhotos = useMemo(() => {
-    const groups: Record<string, ProgressPhotoTimeline[]> = {};
+    const groups: Record<string, { photos: ProgressPhotoTimeline[]; sortKey: string }> = {};
 
     photos.forEach((photo) => {
       const date = new Date(photo.date);
-      const key = date.toLocaleDateString('en-US', {
+      const displayKey = date.toLocaleDateString('en-US', {
         year: 'numeric',
         month: 'long',
       });
-      if (!groups[key]) {
-        groups[key] = [];
+      // Use YYYY-MM format for proper sorting
+      const sortKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+
+      if (!groups[displayKey]) {
+        groups[displayKey] = { photos: [], sortKey };
       }
-      groups[key].push(photo);
+      groups[displayKey].photos.push(photo);
     });
 
-    return Object.entries(groups).sort(([a], [b]) => {
-      const dateA = new Date(a);
-      const dateB = new Date(b);
-      return dateB.getTime() - dateA.getTime();
-    });
+    // Sort by the sortKey (YYYY-MM format) in descending order (newest first)
+    return Object.entries(groups)
+      .map(([month, data]) => [month, data.photos, data.sortKey] as const)
+      .sort((a, b) => b[2].localeCompare(a[2]))
+      .map(([month, monthPhotos]) => [month, monthPhotos] as [string, ProgressPhotoTimeline[]]);
   }, [photos]);
 
   const handleRefresh = useCallback(() => {
