@@ -170,12 +170,29 @@ export default function LogMetricsScreen() {
       // Note: We always save in base units (kg for weight, % for body composition)
       // If user entered absolute kg for body fat/muscle, we would need backend support
       // For now, we save what we have (which is always in the expected format)
-      const savedMetrics = await createMetrics.mutateAsync({
+
+      // Build request with explicit types to ensure proper serialization
+      const requestData: {
+        date: string;
+        weightKg?: number;
+        bodyFatPercentage?: number;
+        muscleMassPercentage?: number;
+      } = {
         date,
-        weightKg: weightKg ?? undefined,
-        bodyFatPercentage: bodyFatPercentage ?? undefined,
-        muscleMassPercentage: muscleMassPercentage ?? undefined,
-      });
+      };
+
+      // Only include values that are set (not null)
+      if (weightKg !== null) {
+        requestData.weightKg = Number(weightKg.toFixed(1));
+      }
+      if (bodyFatPercentage !== null) {
+        requestData.bodyFatPercentage = Number(bodyFatPercentage.toFixed(1));
+      }
+      if (muscleMassPercentage !== null) {
+        requestData.muscleMassPercentage = Number(muscleMassPercentage.toFixed(1));
+      }
+
+      const savedMetrics = await createMetrics.mutateAsync(requestData);
 
       // Upload photos if any
       if (photos.length > 0 && savedMetrics.id) {
@@ -202,8 +219,12 @@ export default function LogMetricsScreen() {
       Alert.alert('Success', 'Body metrics saved successfully!', [
         { text: 'OK', onPress: () => router.back() },
       ]);
-    } catch (error) {
-      Alert.alert('Error', 'Failed to save metrics. Please try again.');
+    } catch (error: any) {
+      console.error('Failed to save body metrics:', error);
+      const errorMessage = error?.response?.data?.message
+        || error?.message
+        || 'Failed to save metrics. Please try again.';
+      Alert.alert('Error', errorMessage);
     } finally {
       setIsSaving(false);
     }
