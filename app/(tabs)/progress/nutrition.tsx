@@ -79,18 +79,56 @@ export default function NutritionScreen() {
   const calories = caloriesTrend.data;
   const macros = macroDistribution.data;
 
-  // Prepare bar chart data
-  const chartData = calories?.dataPoints?.slice(-7).map((point) => ({
+  // Determine how many data points to show based on period
+  const getChartPoints = () => {
+    switch (period) {
+      case '7d':
+        return 7;
+      case '30d':
+        return 30;
+      case '90d':
+        return 90;
+      default:
+        return 7;
+    }
+  };
+  const chartPointCount = getChartPoints();
+
+  // Prepare bar chart data based on selected period
+  const chartData = calories?.dataPoints?.slice(-chartPointCount).map((point) => ({
     date: point.date,
     consumed: point.consumed,
     goal: point.goal,
     adherence: point.adherence,
   })) ?? [];
 
+  // For longer periods, show fewer labels to keep the chart readable
+  const getLabelInterval = () => {
+    switch (period) {
+      case '7d':
+        return 1; // Show all labels
+      case '30d':
+        return 7; // Show weekly labels
+      case '90d':
+        return 14; // Show bi-weekly labels
+      default:
+        return 1;
+    }
+  };
+  const labelInterval = getLabelInterval();
+
   const barChartData = {
-    labels: chartData.map((d) => {
-      const date = new Date(d.date);
-      return date.toLocaleDateString('en-US', { weekday: 'short' }).slice(0, 3);
+    labels: chartData.map((d, index) => {
+      // Only show labels at the interval to avoid overcrowding
+      if (index % labelInterval !== 0 && index !== chartData.length - 1) {
+        return '';
+      }
+      const date = new Date(d.date + 'T00:00:00');
+      if (period === '7d') {
+        return date.toLocaleDateString('en-US', { weekday: 'short' }).slice(0, 3);
+      }
+      // For longer periods, show date as M/D format
+      return `${date.getMonth() + 1}/${date.getDate()}`;
     }),
     datasets: [
       {
@@ -129,30 +167,36 @@ export default function NutritionScreen() {
           {/* Bar Chart */}
           {chartData.length > 0 ? (
             <View style={styles.chartContainer}>
-              <BarChart
-                data={barChartData}
-                width={screenWidth - 64}
-                height={180}
-                yAxisLabel=""
-                yAxisSuffix=""
-                chartConfig={{
-                  backgroundColor: '#FFFFFF',
-                  backgroundGradientFrom: '#FFFFFF',
-                  backgroundGradientTo: '#FFFFFF',
-                  decimalPlaces: 0,
-                  color: () => '#007AFF',
-                  labelColor: () => '#8E8E93',
-                  barPercentage: 0.6,
-                  propsForBackgroundLines: {
-                    strokeDasharray: '',
-                    stroke: '#E5E5EA',
-                    strokeWidth: 1,
-                  },
-                }}
-                style={styles.chart}
-                showValuesOnTopOfBars={false}
-                fromZero
-              />
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={period !== '7d'}
+                contentContainerStyle={styles.chartScrollContent}
+              >
+                <BarChart
+                  data={barChartData}
+                  width={Math.max(screenWidth - 64, chartData.length * 12)}
+                  height={180}
+                  yAxisLabel=""
+                  yAxisSuffix=""
+                  chartConfig={{
+                    backgroundColor: '#FFFFFF',
+                    backgroundGradientFrom: '#FFFFFF',
+                    backgroundGradientTo: '#FFFFFF',
+                    decimalPlaces: 0,
+                    color: () => '#007AFF',
+                    labelColor: () => '#8E8E93',
+                    barPercentage: period === '7d' ? 0.6 : 0.8,
+                    propsForBackgroundLines: {
+                      strokeDasharray: '',
+                      stroke: '#E5E5EA',
+                      strokeWidth: 1,
+                    },
+                  }}
+                  style={styles.chart}
+                  showValuesOnTopOfBars={false}
+                  fromZero
+                />
+              </ScrollView>
 
               {/* Goal line indicator */}
               <View style={styles.goalLineInfo}>
@@ -429,6 +473,9 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   chartContainer: {
+    alignItems: 'center',
+  },
+  chartScrollContent: {
     alignItems: 'center',
   },
   chart: {
