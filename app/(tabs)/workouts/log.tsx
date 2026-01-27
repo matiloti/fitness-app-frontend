@@ -96,7 +96,11 @@ export default function LogWorkoutScreen() {
         notes: notes.trim() || undefined,
       });
 
-      router.back();
+      // Dismiss the modal and navigate to workouts index
+      // Using dismiss() ensures the modal is properly closed
+      // Using replace ensures we go to workouts page regardless of where we came from
+      router.dismiss();
+      router.replace('/workouts');
     } catch (error) {
       Alert.alert('Error', 'Failed to log workout. Please try again.');
     }
