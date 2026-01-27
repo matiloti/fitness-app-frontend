@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, type ViewStyle } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, type ViewStyle } from 'react-native';
 
 interface SegmentedControlProps<T extends string> {
   options: { value: T; label: string }[];
@@ -7,6 +7,20 @@ interface SegmentedControlProps<T extends string> {
   onChange: (value: T) => void;
   style?: ViewStyle;
 }
+
+// Shadow styles defined outside component to avoid NativeWind shadow-* class issues
+// that cause "Couldn't find a navigation context" errors with expo-router
+// See: https://github.com/nativewind/nativewind/issues/1516
+const styles = StyleSheet.create({
+  selectedOption: {
+    backgroundColor: '#FFFFFF',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+});
 
 export function SegmentedControl<T extends string>({
   options,
@@ -25,9 +39,8 @@ export function SegmentedControl<T extends string>({
         return (
           <TouchableOpacity
             key={option.value}
-            className={`flex-1 py-2 px-4 rounded-md items-center justify-center ${
-              isSelected ? 'bg-white shadow-sm' : ''
-            }`}
+            className="flex-1 py-2 px-4 rounded-md items-center justify-center"
+            style={isSelected ? styles.selectedOption : undefined}
             onPress={() => onChange(option.value)}
             activeOpacity={0.7}
             accessibilityRole="tab"
