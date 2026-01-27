@@ -27,19 +27,20 @@ export function CalorieRing({
   strokeWidth = 16,
   showLabels = true,
 }: CalorieRingProps) {
-  // Net calories accounts for exercise: Food - Exercise
-  const netCalories = consumed - exercise;
+  // Adjusted goal increases with exercise (user can eat more after working out)
+  // Formula: Available = Base Goal + Exercise Burned
+  const adjustedGoal = goal + exercise;
   const progress = useSharedValue(0);
 
   const radius = (size - strokeWidth) / 2;
   const circumference = 2 * Math.PI * radius;
   const center = size / 2;
 
-  // Progress is calculated based on net calories (food - exercise)
-  const percentage = Math.min((netCalories / goal) * 100, 150); // Cap at 150%
-  const remaining = Math.max(goal - netCalories, 0);
-  const isOverGoal = netCalories > goal;
-  const isAtGoal = netCalories >= goal * 0.95 && netCalories <= goal * 1.05;
+  // Progress is calculated based on consumed vs adjusted goal
+  const percentage = Math.min((consumed / adjustedGoal) * 100, 150); // Cap at 150%
+  const remaining = Math.max(adjustedGoal - consumed, 0);
+  const isOverGoal = consumed > adjustedGoal;
+  const isAtGoal = consumed >= adjustedGoal * 0.95 && consumed <= adjustedGoal * 1.05;
 
   // Determine color based on progress
   const getProgressColor = () => {
@@ -75,10 +76,10 @@ export function CalorieRing({
       accessibilityRole="progressbar"
       accessibilityLabel={
         exercise > 0
-          ? `${netCalories} net calories (${consumed} eaten minus ${exercise} burned) of ${goal} goal, ${remaining} remaining, ${Math.round(percentage)}% of daily goal`
+          ? `${consumed} calories consumed of ${adjustedGoal} adjusted goal (${goal} base + ${exercise} exercise), ${remaining} remaining, ${Math.round(percentage)}% of daily goal`
           : `${consumed} of ${goal} calories consumed, ${remaining} remaining, ${Math.round(percentage)}% of daily goal`
       }
-      accessibilityValue={{ min: 0, max: goal, now: netCalories }}
+      accessibilityValue={{ min: 0, max: adjustedGoal, now: consumed }}
     >
       <Svg width={size} height={size}>
         <G rotation="-90" origin={`${center}, ${center}`}>
@@ -126,17 +127,9 @@ export function CalorieRing({
 
       {/* Center content */}
       <View style={styles.centerContent}>
-        {exercise > 0 ? (
-          // Show net calories when exercise is present
-          <>
-            <Text style={styles.consumedValue}>{netCalories.toLocaleString()}</Text>
-            <Text style={styles.netLabel}>net</Text>
-          </>
-        ) : (
-          <Text style={styles.consumedValue}>{consumed.toLocaleString()}</Text>
-        )}
+        <Text style={styles.consumedValue}>{consumed.toLocaleString()}</Text>
         <View style={styles.divider} />
-        <Text style={styles.goalValue}>{goal.toLocaleString()}</Text>
+        <Text style={styles.goalValue}>{adjustedGoal.toLocaleString()}</Text>
         <Text style={styles.unitLabel}>kcal</Text>
       </View>
 
@@ -145,14 +138,14 @@ export function CalorieRing({
         <View style={styles.statusContainer}>
           <Text style={[styles.statusText, isOverGoal && styles.statusTextOver]}>
             {isOverGoal
-              ? `${(netCalories - goal).toLocaleString()} over goal`
+              ? `${(consumed - adjustedGoal).toLocaleString()} over goal`
               : `${remaining.toLocaleString()} remaining`}
             {' • '}
             {Math.round(percentage)}% of goal
           </Text>
           {exercise > 0 && (
             <Text style={styles.exerciseText}>
-              {consumed.toLocaleString()} eaten - {exercise.toLocaleString()} burned
+              +{exercise.toLocaleString()} kcal from exercise
             </Text>
           )}
         </View>
@@ -191,11 +184,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#AEAEB2',
     marginTop: 2,
-  },
-  netLabel: {
-    fontSize: 11,
-    color: '#8E8E93',
-    marginTop: -2,
   },
   statusContainer: {
     position: 'absolute',
