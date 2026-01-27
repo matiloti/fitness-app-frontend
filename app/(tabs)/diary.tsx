@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -244,7 +245,16 @@ export default function DiaryScreen() {
         })}
 
         {/* Add custom meal type button */}
-        <TouchableOpacity style={styles.addMealTypeButton}>
+        <TouchableOpacity
+          style={styles.addMealTypeButton}
+          onPress={() =>
+            Alert.alert(
+              'Coming Soon',
+              'Custom meal types will be available in a future update.',
+              [{ text: 'OK' }]
+            )
+          }
+        >
           <Ionicons name="add" size={20} color="#007AFF" />
           <Text style={styles.addMealTypeText}>Add Meal Type</Text>
         </TouchableOpacity>
