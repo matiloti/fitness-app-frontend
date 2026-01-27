@@ -5,7 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Avatar, SettingsRow, Button } from '../../../src/components/ui';
 import { useProfile } from '../../../src/hooks/useProfile';
 import { useAuth } from '../../../src/hooks/useAuth';
-import { ACTIVITY_LEVEL_DATA, FITNESS_GOAL_DATA, INTENSITY_DATA } from '../../../src/constants';
+import { ACTIVITY_LEVEL_DATA, FITNESS_GOAL_DATA, INTENSITY_DATA, calculateDailyGoal } from '../../../src/constants';
 
 export default function ProfileScreen() {
   const router = useRouter();
@@ -55,6 +55,31 @@ export default function ProfileScreen() {
     return parts.length > 0 ? parts.join(', ') : 'Not set';
   };
 
+  // Calculate daily calorie goal locally if backend hasn't provided it
+  const getDailyCalories = (): string => {
+    // First check if backend has calculated it
+    if (profile?.calculations?.dailyCalorieGoal) {
+      return `${profile.calculations.dailyCalorieGoal.toLocaleString()} kcal`;
+    }
+
+    // Try to calculate locally if we have TDEE and fitness goal
+    const tdee = profile?.calculations?.tdee;
+    const goalType = profile?.fitnessGoal?.type;
+    const intensity = profile?.fitnessGoal?.intensity;
+
+    if (tdee && goalType) {
+      const dailyGoal = calculateDailyGoal(
+        tdee,
+        goalType,
+        goalType !== 'MAINTAIN' ? intensity || 'NORMAL' : undefined
+      );
+      return `${dailyGoal.toLocaleString()} kcal`;
+    }
+
+    // Not enough data to calculate
+    return 'Not calculated';
+  };
+
   return (
     <SafeAreaView className="flex-1 bg-gray-50">
       <ScrollView className="flex-1">
@@ -94,11 +119,7 @@ export default function ProfileScreen() {
               icon="flame"
               iconColor="#F97316"
               title="Daily Calories"
-              value={
-                profile?.calculations?.dailyCalorieGoal
-                  ? `${profile.calculations.dailyCalorieGoal.toLocaleString()} kcal`
-                  : 'Not calculated'
-              }
+              value={getDailyCalories()}
               onPress={() => router.push('/(tabs)/profile/fitness-goal')}
               isFirst
             />
