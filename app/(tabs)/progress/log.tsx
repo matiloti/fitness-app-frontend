@@ -15,6 +15,8 @@ import { Ionicons } from '@expo/vector-icons';
 import Slider from '@react-native-community/slider';
 import * as ImagePicker from 'expo-image-picker';
 import { Button } from '../../../src/components/ui';
+import { DateNavigation } from '../../../src/components/diary/DatePicker';
+import { getDateString } from '../../../src/hooks/useDays';
 import {
   useLatestBodyMetrics,
   useBodyMetricsByDate,
@@ -31,10 +33,10 @@ interface PhotoData {
 
 export default function LogMetricsScreen() {
   const router = useRouter();
-  const today = new Date().toISOString().split('T')[0];
+  const today = getDateString();
 
   // State
-  const [date] = useState(today);
+  const [date, setDate] = useState(today);
   const [weightKg, setWeightKg] = useState<number | null>(null);
   const [bodyFatPercentage, setBodyFatPercentage] = useState<number | null>(null);
   const [muscleMassPercentage, setMuscleMassPercentage] = useState<number | null>(null);
@@ -43,13 +45,13 @@ export default function LogMetricsScreen() {
 
   // Queries
   const latestMetrics = useLatestBodyMetrics();
-  const todayMetrics = useBodyMetricsByDate(date);
+  const selectedDateMetrics = useBodyMetricsByDate(date);
   const createMetrics = useCreateBodyMetrics();
   const addPhoto = useAddPhoto();
 
-  // Initialize values from latest or today's metrics
+  // Initialize values from selected date's metrics or latest metrics
   useEffect(() => {
-    const metrics = todayMetrics.data ?? latestMetrics.data;
+    const metrics = selectedDateMetrics.data ?? latestMetrics.data;
     if (metrics) {
       if (weightKg === null && metrics.weightKg) {
         setWeightKg(metrics.weightKg);
@@ -61,7 +63,7 @@ export default function LogMetricsScreen() {
         setMuscleMassPercentage(metrics.muscleMassPercentage);
       }
     }
-  }, [todayMetrics.data, latestMetrics.data]);
+  }, [selectedDateMetrics.data, latestMetrics.data]);
 
   const handleSave = useCallback(async () => {
     if (!weightKg && !bodyFatPercentage && !muscleMassPercentage) {
@@ -201,16 +203,7 @@ export default function LogMetricsScreen() {
     return photos.find((p) => p.position === position);
   };
 
-  const formatDate = (dateString: string): string => {
-    const d = new Date(dateString);
-    return d.toLocaleDateString('en-US', {
-      weekday: 'long',
-      month: 'long',
-      day: 'numeric',
-    });
-  };
-
-  const isLoading = latestMetrics.isLoading || todayMetrics.isLoading;
+  const isLoading = latestMetrics.isLoading || selectedDateMetrics.isLoading;
 
   if (isLoading) {
     return (
@@ -230,12 +223,14 @@ export default function LogMetricsScreen() {
         contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps="handled"
       >
-        {/* Date */}
-        <TouchableOpacity style={styles.dateSelector}>
-          <Ionicons name="calendar-outline" size={20} color="#007AFF" />
-          <Text style={styles.dateText}>{formatDate(date)}</Text>
-          <Ionicons name="chevron-down" size={16} color="#8E8E93" />
-        </TouchableOpacity>
+        {/* Date Selection */}
+        <View style={styles.dateSelectorContainer}>
+          <DateNavigation
+            date={date}
+            onDateChange={setDate}
+            maxDate={today}
+          />
+        </View>
 
         {/* Weight */}
         <View style={styles.metricCard}>
@@ -475,20 +470,10 @@ const styles = StyleSheet.create({
     padding: 16,
     paddingBottom: 40,
   },
-  dateSelector: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+  dateSelectorContainer: {
     backgroundColor: '#FFFFFF',
     borderRadius: 12,
-    padding: 12,
     marginBottom: 16,
-    gap: 8,
-  },
-  dateText: {
-    fontSize: 17,
-    fontWeight: '500',
-    color: '#000000',
   },
   metricCard: {
     backgroundColor: '#FFFFFF',
