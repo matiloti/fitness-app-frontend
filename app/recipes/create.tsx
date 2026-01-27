@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useCallback, useMemo, useEffect } from 'react';
 import {
   View,
   Text,
@@ -15,55 +15,54 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useCreateRecipe } from '../../src/hooks/useRecipes';
 import { NutritionBar } from '../../src/components/recipes';
-import type {
-  CreateIngredientInput,
-  CreateStepInput,
-  RecipeNutrition,
-} from '../../src/services/recipeService';
-
-// Temporary types for form state
-interface TempIngredient {
-  tempId: string;
-  foodId: string;
-  foodName: string;
-  portionId?: number;
-  portionName?: string;
-  quantity: number;
-  amountGrams: number;
-  nutrition: RecipeNutrition;
-}
-
-interface TempStep {
-  tempId: string;
-  description: string;
-  durationMinutes?: number;
-}
+import { useRecipeFormStore } from '../../src/stores/recipeFormStore';
 
 export default function CreateRecipeScreen() {
   const router = useRouter();
   const createRecipe = useCreateRecipe();
 
-  // Form state
-  const [name, setName] = useState('');
-  const [description, setDescription] = useState('');
-  const [servings, setServings] = useState(4);
-  const [ingredients, setIngredients] = useState<TempIngredient[]>([]);
-  const [steps, setSteps] = useState<TempStep[]>([]);
+  // Use the shared store for form state
+  const {
+    name,
+    description,
+    servings,
+    ingredients,
+    steps,
+    setName,
+    setDescription,
+    setServings,
+    removeIngredient,
+    removeStep,
+    resetForm,
+    hasChanges,
+  } = useRecipeFormStore();
+
+  // Reset form when component mounts (new recipe)
+  useEffect(() => {
+    resetForm();
+  }, []);
 
   const handleBack = useCallback(() => {
-    if (name || description || ingredients.length > 0 || steps.length > 0) {
+    if (hasChanges()) {
       Alert.alert(
         'Discard Changes?',
         'You have unsaved changes. Are you sure you want to go back?',
         [
           { text: 'Keep Editing', style: 'cancel' },
-          { text: 'Discard', style: 'destructive', onPress: () => router.back() },
+          {
+            text: 'Discard',
+            style: 'destructive',
+            onPress: () => {
+              resetForm();
+              router.back();
+            },
+          },
         ]
       );
     } else {
       router.back();
     }
-  }, [router, name, description, ingredients.length, steps.length]);
+  }, [router, hasChanges, resetForm]);
 
   const handleSave = useCallback(async () => {
     // Validation
@@ -96,11 +95,12 @@ export default function CreateRecipeScreen() {
       };
 
       const newRecipe = await createRecipe.mutateAsync(recipeData);
+      resetForm();
       router.replace(`/recipes/${newRecipe.id}`);
     } catch (err) {
       Alert.alert('Error', 'Failed to create recipe. Please try again.');
     }
-  }, [name, description, servings, ingredients, steps, createRecipe, router]);
+  }, [name, description, servings, ingredients, steps, createRecipe, router, resetForm]);
 
   const handleAddIngredient = useCallback(() => {
     // Navigate to add ingredient modal
@@ -108,14 +108,13 @@ export default function CreateRecipeScreen() {
       pathname: '/recipes/add-ingredient',
       params: {
         mode: 'create',
-        onSelect: 'handleIngredientSelect',
       },
     });
   }, [router]);
 
   const handleRemoveIngredient = useCallback((tempId: string) => {
-    setIngredients((prev) => prev.filter((i) => i.tempId !== tempId));
-  }, []);
+    removeIngredient(tempId);
+  }, [removeIngredient]);
 
   const handleAddStep = useCallback(() => {
     // Navigate to add step modal
@@ -128,20 +127,20 @@ export default function CreateRecipeScreen() {
   }, [router]);
 
   const handleRemoveStep = useCallback((tempId: string) => {
-    setSteps((prev) => prev.filter((s) => s.tempId !== tempId));
-  }, []);
+    removeStep(tempId);
+  }, [removeStep]);
 
   const incrementServings = useCallback(() => {
     if (servings < 50) {
-      setServings((s) => s + 1);
+      setServings(servings + 1);
     }
-  }, [servings]);
+  }, [servings, setServings]);
 
   const decrementServings = useCallback(() => {
     if (servings > 1) {
-      setServings((s) => s - 1);
+      setServings(servings - 1);
     }
-  }, [servings]);
+  }, [servings, setServings]);
 
   // Calculate total nutrition
   const totalNutrition = useMemo(() => {

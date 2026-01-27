@@ -13,6 +13,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAddStep } from '../../src/hooks/useRecipes';
+import { useRecipeFormStore } from '../../src/stores/recipeFormStore';
 
 export default function AddStepScreen() {
   const router = useRouter();
@@ -20,6 +21,9 @@ export default function AddStepScreen() {
     mode: 'create' | 'edit';
     recipeId?: string;
   }>();
+
+  // Use shared store for create mode
+  const addStepToStore = useRecipeFormStore((state) => state.addStep);
 
   const [description, setDescription] = useState('');
   const [durationMinutes, setDurationMinutes] = useState<number | null>(null);
@@ -53,6 +57,7 @@ export default function AddStepScreen() {
     }
 
     if (mode === 'edit' && recipeId) {
+      // Edit mode: call API directly
       try {
         await addStep.mutateAsync({
           recipeId,
@@ -66,10 +71,14 @@ export default function AddStepScreen() {
         Alert.alert('Error', 'Failed to add step. Please try again.');
       }
     } else {
-      // For create mode, pass back the data
+      // Create mode: add to store
+      addStepToStore({
+        description: description.trim(),
+        durationMinutes: durationMinutes ?? undefined,
+      });
       router.back();
     }
-  }, [description, durationMinutes, mode, recipeId, addStep, router]);
+  }, [description, durationMinutes, mode, recipeId, addStep, addStepToStore, router]);
 
   const handleDurationChange = useCallback((delta: number) => {
     setDurationMinutes((prev) => {

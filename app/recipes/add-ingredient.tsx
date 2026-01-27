@@ -14,8 +14,9 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useFoods, useRecentFoods, useFood } from '../../src/hooks/useFoods';
 import { useAddIngredient } from '../../src/hooks/useRecipes';
+import { useRecipeFormStore } from '../../src/stores/recipeFormStore';
 import { FoodCard } from '../../src/components/diary/FoodCard';
-import type { FoodListItem, FoodDetail, Portion } from '../../src/services/foodService';
+import type { FoodListItem } from '../../src/services/foodService';
 
 type ScreenState = 'search' | 'portion';
 
@@ -25,6 +26,9 @@ export default function AddIngredientScreen() {
     mode: 'create' | 'edit';
     recipeId?: string;
   }>();
+
+  // Use shared store for create mode
+  const addIngredientToStore = useRecipeFormStore((state) => state.addIngredient);
 
   const [screenState, setScreenState] = useState<ScreenState>('search');
   const [searchQuery, setSearchQuery] = useState('');
@@ -69,9 +73,10 @@ export default function AddIngredientScreen() {
   }, []);
 
   const handleAddIngredient = useCallback(async () => {
-    if (!selectedFoodId) return;
+    if (!selectedFoodId || !selectedFood) return;
 
     if (mode === 'edit' && recipeId) {
+      // Edit mode: call API directly
       try {
         await addIngredient.mutateAsync({
           recipeId,
@@ -86,11 +91,39 @@ export default function AddIngredientScreen() {
         console.error('Failed to add ingredient:', err);
       }
     } else {
-      // For create mode, we would pass back the data
-      // This would be handled via params or state management
+      // Create mode: add to store
+      let amountGrams: number;
+      let portionName: string | undefined;
+
+      if (selectedPortionId) {
+        const portion = selectedFood.portions?.find((p) => p.id === selectedPortionId);
+        amountGrams = portion ? portion.amountGrams * quantity : quantity;
+        portionName = portion?.name;
+      } else {
+        amountGrams = quantity;
+      }
+
+      const multiplier = amountGrams / 100;
+      const nutrition = {
+        calories: selectedFood.nutrition.caloriesPer100 * multiplier,
+        protein: selectedFood.nutrition.proteinPer100 * multiplier,
+        carbs: selectedFood.nutrition.carbsPer100 * multiplier,
+        fat: selectedFood.nutrition.fatPer100 * multiplier,
+      };
+
+      addIngredientToStore({
+        foodId: selectedFoodId,
+        foodName: selectedFood.name,
+        portionId: selectedPortionId ?? undefined,
+        portionName,
+        quantity,
+        amountGrams,
+        nutrition,
+      });
+
       router.back();
     }
-  }, [selectedFoodId, selectedPortionId, quantity, mode, recipeId, addIngredient, router]);
+  }, [selectedFoodId, selectedFood, selectedPortionId, quantity, mode, recipeId, addIngredient, addIngredientToStore, router]);
 
   // Calculate nutrition
   const calculatedNutrition = useMemo(() => {
