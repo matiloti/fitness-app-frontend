@@ -6,7 +6,7 @@ import Constants from "expo-constants";
 const API_URL =
   Constants.expoConfig?.extra?.apiUrl ||
   process.env.EXPO_PUBLIC_API_URL ||
-  "http://localhost:8080";
+  "http://localhost:8082";
 
 // Create axios instance
 export const api = axios.create({
